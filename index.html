@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IC50 Calculator (MTT Assay)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f9f9f9; }
+    .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 700px; }
+    table { margin: 15px auto; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; }
+    button { padding: 10px 15px; margin: 5px; border: none; border-radius: 6px; background: #007bff; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    #result { font-weight: bold; color: darkblue; margin-top: 15px; }
+    canvas { margin-top: 20px; width: 100% !important; height: 400px !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>IC50 Calculator (MTT Assay)</h2>
+    <p>Enter drug concentration and OD values:</p>
+    <table id="dataTable">
+      <tr><th>Concentration</th><th>OD Value</th></tr>
+      <tr><td><input type="number" step="any"></td><td><input type="number" step="any"></td></tr>
+      <tr><td><input type="number" step="any"></td><td><input type="number" step="any"></td></tr>
+      <tr><td><input type="number" step="any"></td><td><input type="number" step="any"></td></tr>
+      <tr><td><input type="number" step="any"></td><td><input type="number" step="any"></td></tr>
+      <tr><td><input type="number" step="any"></td><td><input type="number" step="any"></td></tr>
+    </table>
+    <button onclick="addRow()">Add Row</button>
+    <button onclick="analyzeData()">Calculate IC50</button>
+    <button onclick="resetTable()">Reset</button>
+
+    <p id="result"></p>
+    <canvas id="chart"></canvas>
+  </div>
+
+<script>
+function addRow() {
+  let table = document.getElementById("dataTable");
+  let row = table.insertRow();
+  row.insertCell(0).innerHTML = '<input type="number" step="any">';
+  row.insertCell(1).innerHTML = '<input type="number" step="any">';
+}
+
+function resetTable() {
+  let table = document.getElementById("dataTable");
+  while (table.rows.length > 1) table.deleteRow(1);
+  for (let i = 0; i < 5; i++) addRow();
+  document.getElementById("result").innerText = "";
+  if (window.myChart) window.myChart.destroy();
+}
+
+function analyzeData() {
+  let table = document.getElementById("dataTable");
+  let concentrations = [], odValues = [];
+  for (let i = 1; i < table.rows.length; i++) {
+    let c = parseFloat(table.rows[i].cells[0].children[0].value);
+    let od = parseFloat(table.rows[i].cells[1].children[0].value);
+    if (!isNaN(c) && !isNaN(od)) { concentrations.push(c); odValues.push(od); }
+  }
+  if (concentrations.length < 3) { alert("Please enter at least 3 valid data points."); return; }
+
+  let maxOD = Math.max(...odValues);
+  let viability = odValues.map(v => (v / maxOD) * 100);
+
+  let X = concentrations.map(c => Math.log10(c));
+  let Y = viability;
+
+  let Top = Math.max(...Y), Bottom = Math.min(...Y), HillSlope = 1;
+  let logIC50 = X[Math.floor(X.length/2)];
+
+  function logistic(x, Top, Bottom, logIC50, HillSlope) {
+    return Bottom + (Top - Bottom) / (1 + Math.pow(10, (logIC50 - x) * HillSlope));
+  }
+  function loss(params) { let [Top, Bottom, logIC50, HillSlope] = params; return Y.reduce((sum, y, i) => sum + Math.pow(y - logistic(X[i], Top, Bottom, logIC50, HillSlope), 2), 0); }
+
+  let params = [Top, Bottom, logIC50, HillSlope];
+  for (let iter=0; iter<2000; iter++) {
+    let trial = params.map((p,i)=> p + (Math.random()-0.5)*0.2);
+    if (loss(trial)<loss(params)) params = trial;
+  }
+  [Top, Bottom, logIC50, HillSlope] = params;
+  let IC50 = Math.pow(10, logIC50);
+
+  document.getElementById("result").innerText = `Estimated IC50: ${IC50.toFixed(3)} (same units as input concentrations)`;
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (window.myChart) window.myChart.destroy();
+
+  // Smooth curve as continuous line
+  let fitX = math.range(Math.min(...X), Math.max(...X), 0.01, true).toArray();
+  let fitY = fitX.map(x => logistic(x, Top, Bottom, logIC50, HillSlope));
+
+  window.myChart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { 
+          label: 'Fitted Curve', 
+          data: fitX.map((x,i)=>({x:x, y:fitY[i]})), 
+          borderColor: 'blue', 
+          showLine: true, 
+          fill: false, 
+          tension: 0.3, 
+          pointRadius: 0
+        },
+        { 
+          label: 'Data Points', 
+          data: X.map((x,i)=>({x:x,y:Y[i]})), 
+          backgroundColor: 'red', 
+          type:'scatter', 
+          pointRadius:5 
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { type:'linear', title:{display:true, text:'log10(Concentration)'} },
+        y: { title:{display:true, text:'Viability (%)'}, min:0, max:110 }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
