@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gao Lab — IC50 Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh;font-size:14px;line-height:1.5}
+
+/* ── HEADER ── */
+.app-header{background:linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 100%);color:white;padding:0 32px;height:64px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.18);position:sticky;top:0;z-index:200}
+.brand{font-size:20px;font-weight:700;letter-spacing:-0.5px;white-space:nowrap}
+.brand span{opacity:0.65;font-weight:400}
+.header-pill{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:500;letter-spacing:0.4px;white-space:nowrap}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hbtn{padding:7px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:white;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:background 0.15s;white-space:nowrap}
+.hbtn:hover{background:rgba(255,255,255,0.22)}
+.hbtn.green{background:#27ae60;border-color:#27ae60}
+.hbtn.green:hover{background:#229954}
+.hbtn.red{background:#e74c3c;border-color:#e74c3c}
+.hbtn.red:hover{background:#c0392b}
+
+/* ── LAYOUT ── */
+.workspace{display:grid;grid-template-columns:480px 1fr;min-height:calc(100vh - 64px)}
+.left-panel{background:#fff;border-right:1px solid #dde3ea;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.right-panel{padding:24px;overflow-y:auto;background:#f0f4f8}
+
+/* ── SECTION LABELS ── */
+.section-label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;margin:16px 0 6px}
+.section-label:first-child{margin-top:0}
+.divider{height:1px;background:#e2e8f0;margin:14px 0}
+
+/* ── FORM ── */
+label{font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:4px}
+input[type=text],input[type=number],select,textarea{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;color:#1a2332;background:#fff;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+input:focus,select:focus,textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+textarea{font-family:'JetBrains Mono',monospace;font-size:12px;resize:vertical;background:#f8fafc}
+textarea:focus{background:#fff}
+select option{background:#fff}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.input-row .full{grid-column:1/-1}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;white-space:nowrap}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:#fff;color:#374151;border:1px solid #d1d5db}
+.btn-outline:hover{background:#f9fafb}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-full{width:100%;justify-content:center}
+.btn-group{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04);padding:20px;margin-bottom:20px}
+.card-title{font-size:13px;font-weight:600;color:#2c3e50;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.icon-blue{background:#dbeafe;color:#1d4ed8}
+.icon-green{background:#dcfce7;color:#15803d}
+.icon-amber{background:#fef3c7;color:#d97706}
+.icon-red{background:#fee2e2;color:#dc2626}
+.icon-purple{background:#ede9fe;color:#7c3aed}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;background:#e2e8f0;border-radius:8px;padding:3px;margin-bottom:20px}
+.tab{flex:1;padding:8px 4px;font-size:12px;font-weight:500;border:none;background:none;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;color:#64748b;transition:all 0.15s;text-align:center}
+.tab:hover{color:#1e293b}
+.tab.active{background:#fff;color:#2563eb;box-shadow:0 1px 3px rgba(0,0,0,0.1);font-weight:600}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* ── METRICS ── */
+.metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;align-items:start}
+.metric-box{background:#fff;border-radius:8px;padding:14px;border:1px solid #e2e8f0;text-align:center}
+.metric-box .mv{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1e293b}
+.metric-box .ml{font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+.metric-box.accent-blue .mv{color:#2563eb}
+.metric-box.accent-green .mv{color:#16a34a}
+.metric-box.accent-purple .mv{color:#7c3aed}
+.metric-box.accent-amber .mv{color:#d97706}
+.metric-box.accent-red .mv{color:#dc2626}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#1e3a5f;color:#fff;padding:10px 11px;text-align:left;white-space:nowrap;font-weight:600;font-size:11px;letter-spacing:0.3px}
+td{padding:8px 11px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:10px;font-weight:600}
+.badge-good{background:#dcfce7;color:#166534}
+.badge-warn{background:#fef3c7;color:#92400e}
+.badge-bad{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-purple{background:#ede9fe;color:#5b21b6}
+
+/* ── COMPOUND LIST ── */
+.cpd-item{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;position:relative;cursor:pointer;transition:border-color 0.15s}
+.cpd-item:hover{border-color:#93c5fd}
+.cpd-item.active{border-color:#2563eb;background:#eff6ff}
+.cpd-name{font-size:12px;font-weight:600;color:#1e293b}
+.cpd-meta{font-size:11px;color:#3b82f6;margin-top:2px}
+.cpd-ic50{font-size:11px;color:#16a34a;font-family:'JetBrains Mono',monospace;margin-top:2px}
+.cpd-del{position:absolute;right:8px;top:8px;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:15px;padding:2px 5px;border-radius:4px}
+.cpd-del:hover{color:#ef4444;background:#fee2e2}
+
+/* ── CHART CARDS ── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:16px}
+.chart-title{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.chart-card.full{grid-column:1/-1}
+
+/* ── RESULT PANEL ── */
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.result-box{background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;padding:12px}
+.rb-label{font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px}
+.rb-value{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1e293b}
+.rb-unit{font-size:11px;color:#94a3b8;margin-left:3px;font-family:'Inter',sans-serif;font-weight:400}
+.rb-sub{font-size:10px;color:#94a3b8;margin-top:2px}
+
+/* ── QUALITY INDICATOR ── */
+.quality-bar{height:6px;border-radius:3px;background:#e2e8f0;margin-top:6px}
+.quality-fill{height:100%;border-radius:3px;transition:width 0.4s}
+
+/* ── INSIGHT CARDS ── */
+.insight-card{border-radius:8px;padding:13px 15px;margin-bottom:10px;font-size:13px;line-height:1.55;border-left:4px solid}
+.ic-positive{background:#f0fdf4;border-left-color:#16a34a;color:#14532d}
+.ic-negative{background:#fff5f5;border-left-color:#dc2626;color:#7f1d1d}
+.ic-warning{background:#fffbeb;border-left-color:#d97706;color:#78350f}
+.ic-info{background:#eff6ff;border-left-color:#2563eb;color:#1e3a5f}
+.ic-neutral{background:#f8fafc;border-left-color:#94a3b8;color:#334155}
+.ic-title{font-weight:600;margin-bottom:4px}
+.ic-stat{font-family:'JetBrains Mono',monospace;font-size:11px;opacity:0.7;margin-top:4px}
+
+/* ── DROP ZONE ── */
+.drop-zone{border:2px dashed #93c5fd;border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:all 0.2s;background:#f8fafc;margin-bottom:8px}
+.drop-zone:hover,.drop-zone.dragover{border-color:#2563eb;background:#eff6ff}
+.drop-text{font-size:12px;color:#64748b}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:48px 20px;color:#94a3b8}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.empty-title{font-size:15px;font-weight:600;color:#64748b;margin-bottom:4px}
+
+/* ── MISC ── */
+.notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;font-size:12px;color:#1d4ed8;margin-bottom:12px}
+.error-box{background:#fff5f5;border:1px solid #fecaca;color:#b91c1c;padding:10px 14px;border-radius:6px;font-size:12px;margin-top:8px;display:none}
+.formula-box{background:#1e3a5f;color:#e0f0ff;font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 14px;border-radius:8px;margin:10px 0;line-height:1.8}
+.color-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.conc-hint{font-size:11px;color:#94a3b8;margin-top:4px}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">Gao Lab<span> IC50 Calculator</span></div>
+  <span class="header-pill">Dose-Response Curve Fitting Engine</span>
+  <div class="header-right">
+    <button class="hbtn" id="hbtn-sample">⚗ Sample Data</button>
+    <button class="hbtn green" id="hbtn-excel">↓ Excel</button>
+    <button class="hbtn red" id="hbtn-pdf">↓ PDF</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ═══ LEFT PANEL ═══ -->
+  <aside class="left-panel">
+
+    <div class="section-label">Compound Name</div>
+    <input type="text" id="inp-name" placeholder="e.g. Erlotinib, Compound-01" style="margin-bottom:10px">
+
+    <div class="divider" style="margin:10px 0 8px"></div>
+
+    <!-- % INHIBITION CALCULATOR (collapsed by default) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:6px" onclick="toggleInhCalc()">
+      <div class="section-label" style="margin:0">% Inhibition Calculator</div>
+      <span id="inh-toggle-icon" style="font-size:11px;color:#64748b;font-family:'JetBrains Mono',monospace;padding:2px 7px;background:#f1f5f9;border-radius:4px;flex-shrink:0">▼ expand</span>
+    </div>
+    <div id="inh-calc-panel" style="display:none">
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px;background:#f8fafc;border-radius:6px;padding:8px 10px;border:1px solid #e2e8f0;font-family:'JetBrains Mono',monospace;line-height:1.7">
+        % Inh = [1 - (S - Blank)/(Ctrl - Blank)] × 100
+      </div>
+
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="btn btn-outline btn-sm" id="sb-mode-single" onclick="setSbMode('single')"
+          style="flex:1;font-size:11px;border-color:#2563eb;color:#2563eb;font-weight:600;justify-content:center">Single</button>
+        <button class="btn btn-outline btn-sm" id="sb-mode-batch" onclick="setSbMode('batch')"
+          style="flex:1;font-size:11px;justify-content:center">Batch</button>
+      </div>
+
+      <!-- SINGLE sub-panel -->
+      <div id="sb-single">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <div>
+            <label style="font-size:10px">Control</label>
+            <input type="text" id="sb-control" placeholder="e.g. 1850,1920" style="font-size:11px;padding:5px 7px;font-family:'JetBrains Mono',monospace">
+          </div>
+          <div>
+            <label style="font-size:10px">Blank</label>
+            <input type="text" id="sb-blank" placeholder="e.g. 120,130" style="font-size:11px;padding:5px 7px;font-family:'JetBrains Mono',monospace">
+          </div>
+          <div>
+            <label style="font-size:10px">Sample(s)</label>
+            <input type="text" id="sb-samples" placeholder="e.g. 980,1020" style="font-size:11px;padding:5px 7px;font-family:'JetBrains Mono',monospace">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm btn-full" onclick="sbCalcSingle()" style="margin-bottom:8px">Calculate</button>
+        <div id="sb-single-result"></div>
+      </div>
+
+      <!-- BATCH sub-panel -->
+      <div id="sb-batch" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <div>
+            <label style="font-size:10px">Control (global)</label>
+            <input type="text" id="sb-gctrl" placeholder="e.g. 1850,1920,1880" style="font-size:11px;padding:5px 7px;font-family:'JetBrains Mono',monospace">
+          </div>
+          <div>
+            <label style="font-size:10px">Blank (global)</label>
+            <input type="text" id="sb-gblank" placeholder="e.g. 120,130,115" style="font-size:11px;padding:5px 7px;font-family:'JetBrains Mono',monospace">
+          </div>
+        </div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Rows: <code style="background:#f1f5f9;padding:0 4px;border-radius:3px">Conc, r1, r2, r3</code> — or use CONTROL / BLANK rows</div>
+        <textarea id="sb-batch-data" rows="7" style="font-size:11px;margin-bottom:6px"
+          placeholder="CONTROL, 1850, 1920, 1880&#10;BLANK, 120, 130, 115&#10;0.1, 1800, 1820, 1790&#10;1, 1350, 1380, 1360&#10;10, 650, 620, 640&#10;100, 180, 165, 170"></textarea>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="sbCalcBatch()" style="flex:1;justify-content:center;font-size:11px">Calculate</button>
+          <button class="btn btn-success btn-sm" onclick="sbSendToFit()" style="flex:1;justify-content:center;font-size:11px" title="Send results to Fit Curve tab">→ Fit Curve</button>
+        </div>
+        <div id="sb-batch-result" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="divider" style="margin:10px 0 8px"></div>
+    <div class="section-label">Assay Settings</div>
+    <div class="input-row">
+      <div>
+        <label>Response Unit</label>
+        <select id="inp-unit">
+          <option value="% Inhibition">% Inhibition</option>
+          <option value="% Viability">% Viability</option>
+          <option value="% Activity">% Activity</option>
+          <option value="RLU">RLU (raw)</option>
+          <option value="OD">OD (absorbance)</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div>
+        <label>Curve Model</label>
+        <select id="inp-model">
+          <option value="4PL">4PL (sigmoidal)</option>
+          <option value="3PL">3PL (Hill)</option>
+          <option value="LL4">LL4 (log-logistic)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div>
+        <label>Conc. Unit</label>
+        <select id="inp-concunit">
+          <option value="nM">nM</option>
+          <option value="µM">µM</option>
+          <option value="mM">mM</option>
+          <option value="mg/mL">mg/mL</option>
+          <option value="µg/mL">µg/mL</option>
+        </select>
+      </div>
+      <div>
+        <label>Top constraint</label>
+        <select id="inp-top">
+          <option value="free">Free (fit top)</option>
+          <option value="100">Fixed = 100</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-label">Concentration &amp; Response Data</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">
+      Triplicates: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">conc, r1, r2, r3</code> — or single: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">conc, mean</code><br>
+      Same conc on multiple lines is auto-grouped. Mean ± SD error bars plotted automatically.
+    </div>
+    <textarea id="inp-data" rows="11" placeholder="0.3, 95, 97, 96&#10;1, 78, 80, 79&#10;3, 60, 59, 61&#10;10, 47, 48, 46&#10;30, 35, 34, 36&#10;100, 24, 23, 25&#10;300, 22, 21, 23&#10;&#10;OR increasing inhibition:&#10;0.1, 2, 3, 2&#10;1, 14, 13, 15&#10;10, 72, 71, 73&#10;100, 96, 95, 97"></textarea>
+    <div id="errorLog" class="error-box"></div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary btn-full" id="fitBtn">▶ Fit Curve &amp; Calculate IC50</button>
+    </div>
+    <button class="btn btn-outline btn-sm btn-full" style="margin-top:6px" id="addBtn">+ Add to Comparison</button>
+
+    <div class="divider"></div>
+    <div class="section-label">CSV / File Import</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
+      <div style="font-size:22px;margin-bottom:6px">📂</div>
+      <div class="drop-text">Drop .csv / .tsv here or click to browse<br><span style="font-size:10px">Format: concentration, response (header optional)</span></div>
+    </div>
+    <input type="file" id="file-inp" accept=".csv,.tsv,.txt" style="display:none" onchange="handleFile(event)">
+
+    <button class="btn btn-outline btn-sm btn-full" id="clearBtn" style="margin-top:4px">🗑 Clear All Compounds</button>
+
+    <div class="divider"></div>
+    <div class="section-label">Saved Compounds (<span id="cpd-count">0</span>)</div>
+    <div id="cpd-list" style="max-height:260px;overflow-y:auto">
+      <div class="empty-state" style="padding:12px 0"><div style="font-size:11px;color:#94a3b8">No compounds saved yet</div></div>
+    </div>
+
+  </aside>
+
+  <!-- ═══ RIGHT PANEL ═══ -->
+  <main class="right-panel">
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('fit')">Curve Fit</button>
+      <button class="tab" onclick="showTab('compare')">Comparison</button>
+      <button class="tab" onclick="showTab('stats')">Statistics</button>
+      <button class="tab" onclick="showTab('diagnostics')">Diagnostics</button>
+      <button class="tab" onclick="showTab('report')">Report</button>
+
+    </div>
+
+    <!-- TAB: CURVE FIT -->
+    <div id="tab-fit" class="tab-content active">
+      <div id="fit-empty" class="empty-state">
+        <div class="empty-icon">📉</div>
+        <div class="empty-title">No data fitted yet</div>
+        <div>Enter concentration–response pairs and click Fit Curve</div>
+      </div>
+      <div id="fit-results" style="display:none">
+        <!-- metrics row -->
+        <div class="metrics-row" id="fit-metrics"></div>
+        <!-- chart -->
+        <div class="card" style="margin-bottom:16px">
+          <div style="text-align:center;padding:4px 0 12px"><span id="fit-chart-title" style="font-size:15px;font-weight:600;color:#1e3a5f;letter-spacing:-0.2px">Dose-Response Curve</span></div>
+          <div style="display:flex;justify-content:center"><div style="position:relative;width:min(540px,100%);height:400px"><canvas id="fit-chart" role="img" aria-label="dose response curve"></canvas></div></div>
+          <div class="formula-box" id="fit-formula"></div>
+        </div>
+        <!-- parameters table -->
+        <div class="card">
+          <div class="card-title"><span class="icon icon-green">⚙</span>Fitted Parameters &amp; Statistics</div>
+          <div id="fit-params-table"></div>
+          <div style="margin-top:16px" id="fit-insights"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: COMPARISON -->
+    <div id="tab-compare" class="tab-content">
+      <div id="compare-empty" class="empty-state">
+        <div class="empty-icon">🔬</div>
+        <div class="empty-title">No compounds saved for comparison</div>
+        <div>Fit a curve and click "Add to Comparison"</div>
+      </div>
+      <div id="compare-results" style="display:none">
+        <div class="card">
+          <div class="card-title"><span class="icon icon-purple">📊</span>Multi-Compound Overlay</div>
+          <div style="position:relative;height:340px"><canvas id="compare-chart" role="img" aria-label="compound comparison chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon icon-blue">📋</span>IC50 Comparison Table</div>
+          <div id="compare-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: STATISTICS -->
+    <div id="tab-stats" class="tab-content">
+      <div id="stats-empty" class="empty-state">
+        <div class="empty-icon">📐</div>
+        <div class="empty-title">Fit a curve to view statistics</div>
+      </div>
+      <div id="stats-results" style="display:none">
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Residuals Plot</div>
+            <div style="position:relative;height:230px"><canvas id="res-chart" role="img" aria-label="residuals plot"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Observed vs Predicted</div>
+            <div style="position:relative;height:230px"><canvas id="obs-pred-chart" role="img" aria-label="observed vs predicted"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon icon-amber">📏</span>Goodness-of-Fit Statistics</div>
+          <div id="gof-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: DIAGNOSTICS -->
+    <div id="tab-diagnostics" class="tab-content">
+      <div id="diag-empty" class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Fit a curve to view diagnostics</div>
+      </div>
+      <div id="diag-results" style="display:none">
+        <div class="card">
+          <div class="card-title"><span class="icon icon-red">⚠</span>Curve Fit Quality Assessment</div>
+          <div id="diag-content"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon icon-blue">📌</span>Data Point Analysis</div>
+          <div id="datapoint-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: REPORT -->
+    <div id="tab-report" class="tab-content">
+      <div id="report-empty" class="empty-state">
+        <div class="empty-icon">📄</div>
+        <div class="empty-title">Fit a curve to generate a report</div>
+      </div>
+      <div id="report-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><span class="icon icon-blue">📄</span>Analysis Report Summary</div>
+          <div id="report-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: % INHIBITION CALCULATOR -->
+
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let currentFit = null;   // most recent fit result
+let savedCompounds = []; // array of fit results
+let chartInstances = {};
+
+// ═══════════════════════════════════════════════════════════
+//  4PL (four-parameter logistic) curve fit
+//  y = Bottom + (Top - Bottom) / (1 + (IC50/x)^HillSlope)
+// ═══════════════════════════════════════════════════════════
+function fourPL(x, bottom, top, ic50, hill) {
+  if (x <= 0 || ic50 <= 0) return bottom;
+  return bottom + (top - bottom) / (1.0 + Math.pow(ic50 / x, hill));
+}
+
+function threePL(x, top, ic50, hill) {
+  if (x <= 0 || ic50 <= 0) return 0;
+  return top / (1.0 + Math.pow(ic50 / x, hill));
+}
+
+// ── Robust grid-search + Nelder-Mead fitting ──────────────────────────────
+function fitCurve(concArr, respArr, model, fixedTop) {
+  const n = concArr.length;
+  if (n < 3) return null;
+
+  // Work entirely on log-concentration scale for numerical stability
+  const logC = concArr.map(c => Math.log10(Math.max(c, 1e-15)));
+  const minLogC = Math.min(...logC), maxLogC = Math.max(...logC);
+
+  const respMin = Math.min(...respArr);
+  const respMax = Math.max(...respArr);
+  const respRange = respMax - respMin;
+  if (respRange < 0.1) return null;  // no variation
+
+  // ── Detect curve direction ──────────────────────────────────────────────
+  // Correlate log(conc) with response to detect decreasing (inhibition) curves
+  const logCArr = concArr.map(c => Math.log10(c));
+  const meanLogC = logCArr.reduce((a,b)=>a+b,0)/n;
+  const meanResp = respArr.reduce((a,b)=>a+b,0)/n;
+  const covLR = logCArr.reduce((a,x,i)=>a+(x-meanLogC)*(respArr[i]-meanResp),0);
+  const isDecreasing = covLR < 0;  // true for % Activity (inhibition), % Viability etc.
+
+  // For 4PL:  y = Bottom + (Top - Bottom) / (1 + (IC50/x)^Hill)
+  // Increasing: Bottom < Top,  Hill > 0  → curve rises with conc
+  // Decreasing: Bottom > Top,  Hill > 0  → bottom is the HIGH plateau (low conc),
+  //             top is the LOW plateau (high conc) — still valid 4PL
+  // We assign:
+  //   hiPlat = response at low conc  (= respMax for decreasing, respMin for increasing... wait)
+  //   Actually for decreasing: at x→0 y→Bottom (high), at x→∞ y→Top (low)
+  //   So Bottom = high asymptote, Top = low asymptote when isDecreasing
+  const hiPlat = isDecreasing ? respMax : respMax;  // high asymptote value
+  const loPlat = isDecreasing ? respMin : respMin;  // low asymptote value
+
+  // Identify which 4PL param maps to which plateau
+  // 4PL bottom = low-conc asymptote, top = high-conc asymptote
+  const bottomInit = isDecreasing
+    ? respMax + respRange * 0.05   // high plateau at low conc
+    : Math.max(0, respMin - respRange * 0.05);  // low plateau at low conc
+  const topInit = isDecreasing
+    ? Math.max(0, respMin - respRange * 0.05)   // low plateau at high conc
+    : (fixedTop === '100' ? 100 : respMax + respRange * 0.1);
+
+  const is3PL = model === '3PL';
+
+  const pred = (p, x) => is3PL
+    ? threePL(x, p[0], p[1], p[2])        // [top, ic50, hill]
+    : fourPL(x, p[0], p[1], p[2], p[3]);  // [bottom, top, ic50, hill]
+
+  const sse = (p) => {
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      const r = respArr[i] - pred(p, concArr[i]);
+      s += r * r;
+    }
+    return s;
+  };
+
+  // ── Clamp: allow bottom > top for decreasing curves ───────────────────
+  const clamp = (p) => {
+    const out = [...p];
+    const lo = Math.min(respMin, respMax);
+    const hi = Math.max(respMin, respMax);
+    const pad = respRange * 0.5;
+    if (is3PL) {
+      out[0] = fixedTop === '100' ? 100 : Math.max(lo - pad, Math.min(hi + pad, out[0]));
+      out[1] = Math.max(1e-12, out[1]);
+      out[2] = Math.max(0.1, Math.min(15, Math.abs(out[2])));
+    } else {
+      // bottom and top can be anywhere in a ±pad window around the data range
+      // DO NOT force bottom < top — that breaks decreasing curves
+      out[0] = Math.max(lo - pad, Math.min(hi + pad, out[0])); // bottom (low-conc asymptote)
+      out[1] = fixedTop === '100' ? 100 : Math.max(lo - pad, Math.min(hi + pad, out[1])); // top (high-conc asymptote)
+      out[2] = Math.max(1e-12, out[2]);                          // IC50
+      out[3] = Math.max(0.1, Math.min(15, Math.abs(out[3])));   // hill
+    }
+    return out;
+  };
+
+  // ── Phase 1: Dense grid search on log-IC50 × hill space ──────────────
+  const ic50Candidates = [];
+  for (let k = minLogC - 1.5; k <= maxLogC + 1.5; k += 0.2)
+    ic50Candidates.push(Math.pow(10, k));
+  const hillCandidates = [0.3, 0.5, 0.7, 1.0, 1.3, 1.5, 2.0, 3.0, 5.0];
+
+  let bestSSE = Infinity, bestP = null;
+
+  for (const ic50g of ic50Candidates) {
+    for (const hillg of hillCandidates) {
+      const p = is3PL
+        ? clamp([isDecreasing ? bottomInit : topInit, ic50g, hillg])
+        : clamp([bottomInit, topInit, ic50g, hillg]);
+      const s = sse(p);
+      if (s < bestSSE) { bestSSE = s; bestP = p; }
+    }
+  }
+
+  // ── Phase 2: Nelder-Mead refinement starting from best grid point ──
+  function nelderMead(p0, maxIter = 10000) {
+    const dim = p0.length;
+    // Build initial simplex: best point + dim perturbed points
+    let simplex = [clamp([...p0])];
+    for (let i = 0; i < dim; i++) {
+      const s = clamp([...p0]);
+      s[i] = s[i] === 0 ? 1e-6 : s[i] * (i === (model === '3PL' ? 1 : 2) ? 1.5 : 1.15);
+      simplex.push(s);
+    }
+    // Add a few more seeds around the grid best
+    const ic50Idx = is3PL ? 1 : 2;
+    for (const f of [0.5, 2.0, 0.3, 3.0]) {
+      const s = clamp([...p0]); s[ic50Idx] = p0[ic50Idx] * f;
+      simplex.push(s);
+    }
+    simplex.sort((a, b) => sse(a) - sse(b));
+    simplex = simplex.slice(0, dim + 1);
+
+    const alpha2 = 1.0, gamma2 = 2.0, rho2 = 0.5, sigma2 = 0.5;
+    let prevBest = sse(simplex[0]), noImprove = 0;
+
+    for (let iter = 0; iter < maxIter; iter++) {
+      simplex.sort((a, b) => sse(a) - sse(b));
+      const curBest = sse(simplex[0]);
+      if (curBest < 1e-12) break;
+      if (Math.abs(prevBest - curBest) < 1e-10) { if (++noImprove > 200) break; } else noImprove = 0;
+      prevBest = curBest;
+
+      const worst = simplex[dim];
+      const centroid = simplex.slice(0, dim).reduce(
+        (acc, s) => acc.map((v, i) => v + s[i] / dim), new Array(dim).fill(0));
+
+      let reflected = clamp(centroid.map((v, i) => v + alpha2 * (v - worst[i])));
+      if (sse(reflected) < sse(simplex[dim - 1]) && sse(reflected) >= sse(simplex[0])) {
+        simplex[dim] = reflected;
+      } else if (sse(reflected) < sse(simplex[0])) {
+        let expanded = clamp(centroid.map((v, i) => v + gamma2 * (reflected[i] - v)));
+        simplex[dim] = sse(expanded) < sse(reflected) ? expanded : reflected;
+      } else {
+        let contracted = clamp(centroid.map((v, i) => v + rho2 * (worst[i] - v)));
+        if (sse(contracted) < sse(worst)) {
+          simplex[dim] = contracted;
+        } else {
+          const b = simplex[0];
+          simplex = simplex.map((s, si) => si === 0 ? s : clamp(s.map((v, i) => b[i] + sigma2 * (v - b[i]))));
+        }
+      }
+    }
+    simplex.sort((a, b) => sse(a) - sse(b));
+    return simplex[0];
+  }
+
+  const best = nelderMead(bestP);
+
+  // Extract parameters
+  let bottom, top, ic50, hill;
+  if (is3PL) {
+    // For 3PL: param[0] is the top asymptote (used as high-conc plateau)
+    // For decreasing curves the optimizer found a low value for top — that is correct
+    [top, ic50, hill] = best; bottom = 0;
+  } else {
+    [bottom, top, ic50, hill] = best;
+  }
+  hill = Math.abs(hill);
+  if (ic50 <= 0) ic50 = Math.pow(10, (minLogC + maxLogC) / 2);
+
+  // For display purposes: emax is the high-conc asymptote, e0 is the low-conc asymptote
+  const emax = isDecreasing ? top    : top;     // high-conc plateau
+  const e0   = isDecreasing ? bottom : bottom;  // low-conc plateau
+
+  // Compute residuals & statistics
+  const predicted = concArr.map(x => pred(best, x));
+  const resids    = respArr.map((y, i) => y - predicted[i]);
+  const sseVal    = resids.reduce((a, r) => a + r * r, 0);
+  const sst       = respArr.map(y => Math.pow(y - mean(respArr), 2)).reduce((a, b) => a + b, 0);
+  const r2        = sst < 1e-10 ? 1 : Math.max(0, 1 - sseVal / sst);
+  const rmse      = Math.sqrt(sseVal / n);
+  const k_params  = model === '3PL' ? 3 : 4;
+  const aic       = n * Math.log(Math.max(sseVal / n, 1e-12)) + 2 * k_params;
+
+  const { ic50CI, hillCI, ic50SD } = bootstrapCI(concArr, respArr, model, fixedTop, ic50, hill);
+  const cooperativity = hill > 1.5 ? 'positive' : hill < 0.7 ? 'negative' : 'none';
+
+  return {
+    name: document.getElementById('inp-name').value.trim() || 'Unnamed',
+    model, unit: document.getElementById('inp-unit').value,
+    concUnit: document.getElementById('inp-concunit').value, fixedTop,
+    concArr, respArr, predicted, resids,
+    bottom, top, ic50, hill, isDecreasing,
+    ic50CI, hillCI, ic50SD,
+    r2, rmse, sseVal, aic, n, cooperativity,
+    ic50_log: Math.log10(ic50),
+    color: COLORS[savedCompounds.length % COLORS.length]
+  };
+}
+
+function clampParams(p, model, fixedTop) {
+  // Thin wrapper kept for bootstrapCI / fitCurveRaw compatibility
+  const respMax = 200, respMin = -20;
+  const out = [...p];
+  if (model === '3PL') {
+    if (fixedTop === '100') out[0] = 100;
+    else out[0] = Math.max(10, Math.min(300, out[0]));
+    out[1] = Math.max(1e-12, out[1]);
+    out[2] = Math.max(0.1, Math.min(15, Math.abs(out[2])));
+  } else {
+    out[0] = Math.max(-50, Math.min(100, out[0]));
+    if (fixedTop === '100') out[1] = 100;
+    else out[1] = Math.max(10, Math.min(300, out[1]));
+    out[2] = Math.max(1e-12, out[2]);
+    out[3] = Math.max(0.1, Math.min(15, Math.abs(out[3])));
+  }
+  return out;
+}
+
+function bootstrapCI(concArr, respArr, model, fixedTop, ic50Est, hillEst) {
+  const B = 150;
+  const ic50s = [], hills = [];
+  const n = concArr.length;
+  for (let b = 0; b < B; b++) {
+    const idx = Array.from({length:n}, () => Math.floor(Math.random()*n));
+    const bc = idx.map(i => concArr[i]);
+    const br = idx.map(i => respArr[i]);
+    try {
+      const fit = fitCurveRaw(bc, br, model, fixedTop);
+      if (fit && fit[0] > 0) { ic50s.push(fit[0]); hills.push(fit[1]); }
+    } catch(e){}
+  }
+  ic50s.sort((a,b)=>a-b); hills.sort((a,b)=>a-b);
+  const lo = Math.floor(B*0.025), hi = Math.floor(B*0.975);
+  // IC50 SD from bootstrap distribution
+  let ic50SD = 0;
+  if (ic50s.length > 3) {
+    const mIC50 = ic50s.reduce((a,b)=>a+b,0)/ic50s.length;
+    ic50SD = Math.sqrt(ic50s.reduce((a,v)=>a+(v-mIC50)**2,0)/(ic50s.length-1));
+  }
+  return {
+    ic50CI:  ic50s.length > 10 ? [ic50s[lo]||ic50Est*0.5, ic50s[hi]||ic50Est*2] : [ic50Est*0.5, ic50Est*2],
+    hillCI:  hills.length > 10 ? [hills[lo]||hillEst*0.7, hills[hi]||hillEst*1.3] : [hillEst*0.7, hillEst*1.3],
+    ic50SD
+  };
+}
+
+function fitCurveRaw(concArr, respArr, model, fixedTop) {
+  const concMid = geoMean(concArr);
+  const respMax = Math.max(...respArr);
+  const respMin = Math.min(...respArr);
+  const respRange = respMax - respMin;
+  // detect direction
+  const n2 = concArr.length;
+  const logCArr2 = concArr.map(c => Math.log10(c));
+  const meanLC2 = logCArr2.reduce((a,b)=>a+b,0)/n2;
+  const meanR2 = respArr.reduce((a,b)=>a+b,0)/n2;
+  const cov2 = logCArr2.reduce((a,x,i)=>a+(x-meanLC2)*(respArr[i]-meanR2),0);
+  const dec2 = cov2 < 0;
+  const botInit = dec2 ? respMax + respRange*0.05 : Math.max(0, respMin - respRange*0.05);
+  const topInit = dec2 ? Math.max(0, respMin - respRange*0.05) : (fixedTop==='100'?100:respMax+respRange*0.1);
+  let p = model === '3PL'
+    ? [dec2 ? botInit : topInit, concMid, 1.0]
+    : [botInit, fixedTop==='100'?100:topInit, concMid, 1.0];
+  const predict2 = (p, x) => model === '3PL' ? threePL(x,p[0],p[1],p[2]) : fourPL(x,p[0],p[1],p[2],p[3]);
+  const sse2 = (p) => concArr.reduce((a,x,i)=>a+(respArr[i]-predict2(p,x))**2,0);
+  const ic50Idx = model==='3PL'?1:2;
+  const lo = Math.min(respMin,respMax), hi = Math.max(respMin,respMax), pad = respRange*0.5;
+  const clamp2 = (p) => {
+    const o=[...p];
+    if(model==='3PL'){o[0]=Math.max(lo-pad,Math.min(hi+pad,o[0]));o[1]=Math.max(1e-12,o[1]);o[2]=Math.max(0.1,Math.min(15,Math.abs(o[2])));}
+    else{o[0]=Math.max(lo-pad,Math.min(hi+pad,o[0]));o[1]=fixedTop==='100'?100:Math.max(lo-pad,Math.min(hi+pad,o[1]));o[2]=Math.max(1e-12,o[2]);o[3]=Math.max(0.1,Math.min(15,Math.abs(o[3])));}
+    return o;
+  };
+  let best = clamp2([...p]);
+  for (let k=-4;k<=4;k+=0.25) {
+    const s=clamp2([...p]); s[ic50Idx]=concMid*Math.pow(10,k);
+    if(sse2(s)<sse2(best)) best=s;
+  }
+  if(best[ic50Idx]<=0) return null;
+  return [best[ic50Idx], best[model==='3PL'?2:3]];
+}
+
+// ── math helpers ──────────────────────────────────────────
+function mean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function geoMean(arr){ return Math.exp(arr.reduce((a,x)=>a+Math.log(Math.max(x,1e-12)),0)/arr.length); }
+function std(arr){ const m=mean(arr); return Math.sqrt(arr.reduce((a,x)=>a+(x-m)**2,0)/arr.length); }
+function formatIC50(v, unit) {
+  if (v >= 1000) return `${(v/1000).toFixed(2)} µ${unit==='nM'?'M':unit}`;
+  if (v < 0.01) return `${(v*1000).toFixed(2)} p${unit}`;
+  return `${v.toFixed(3)} ${unit}`;
+}
+
+const COLORS = ['#2563eb','#16a34a','#dc2626','#7c3aed','#d97706','#0891b2','#be185d','#065f46'];
+
+// ═══════════════════════════════════════════════════════════
+//  PARSE INPUT  —  supports single, triplicate, any n replicates
+//  Formats:  conc, r1          (single per line)
+//            conc, r1, r2, r3  (triplicate on one line)
+//            Same conc on multiple lines (auto-grouped)
+// ═══════════════════════════════════════════════════════════
+function stdSample(arr) {
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((a, x) => a + (x - m) ** 2, 0) / (arr.length - 1));
+}
+
+function parseInput(raw) {
+  const err = document.getElementById('errorLog');
+  err.style.display = 'none'; err.innerHTML = '';
+  const lines = raw.trim().split('\n').filter(l => l.trim());
+  const errors = [];
+
+  const rows = [];
+  lines.forEach((line, i) => {
+    if (/^(conc|concentration|dose|x)/i.test(line.split(/[\t,;]/)[0])) return;
+    const parts = line.split(/[\t,;]/).map(s => s.trim()).filter(s => s !== '');
+    if (parts.length < 2) { errors.push(`Line ${i+1}: need at least concentration and one response`); return; }
+    const c = parseFloat(parts[0]);
+    if (isNaN(c) || c <= 0) { errors.push(`Line ${i+1}: invalid concentration "${parts[0]}"`); return; }
+    const vals = parts.slice(1).map(parseFloat).filter(v => !isNaN(v));
+    if (!vals.length) { errors.push(`Line ${i+1}: no valid response values`); return; }
+    rows.push({ c, vals });
+  });
+
+  if (errors.length) { err.style.display='block'; err.innerHTML=errors.slice(0,4).join('<br>'); return null; }
+  if (!rows.length) { err.style.display='block'; err.innerHTML='No valid rows found.'; return null; }
+
+  // group replicates by concentration
+  const grouped = {};
+  rows.forEach(({ c, vals }) => {
+    const key = c.toPrecision(8);
+    if (!grouped[key]) grouped[key] = { c, vals: [] };
+    grouped[key].vals.push(...vals);
+  });
+
+  const concs = [], resps = [], sds = [], sems = [], ns = [], allRaw = [];
+  Object.values(grouped).sort((a, b) => a.c - b.c).forEach(({ c, vals }) => {
+    const m = mean(vals);
+    const s = stdSample(vals);
+    concs.push(c);
+    resps.push(m);
+    sds.push(s);
+    sems.push(vals.length > 1 ? s / Math.sqrt(vals.length) : 0);
+    ns.push(vals.length);
+    allRaw.push({ c, vals, mean: m, sd: s, sem: vals.length > 1 ? s / Math.sqrt(vals.length) : 0, n: vals.length });
+  });
+
+  return { concs, resps, sds, sems, ns, allRaw, hasReplicates: allRaw.some(r => r.n > 1) };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FIT BUTTON
+// ═══════════════════════════════════════════════════════════
+document.getElementById('fitBtn').addEventListener('click', () => {
+  const raw = document.getElementById('inp-data').value;
+  if (!raw.trim()) { alert('Please enter concentration–response data.'); return; }
+  const parsed = parseInput(raw);
+  if (!parsed) return;
+  const model = document.getElementById('inp-model').value;
+  const fixedTop = document.getElementById('inp-top').value;
+  const fit = fitCurve(parsed.concs, parsed.resps, model, fixedTop);
+  if (!fit) { alert('Curve fitting failed. Need at least 3 data points with variation.'); return; }
+  fit.name = document.getElementById('inp-name').value.trim() || `Compound-${savedCompounds.length+1}`;
+  fit.color = COLORS[savedCompounds.length % COLORS.length];
+  // store replicate info
+  fit.sds = parsed.sds;
+  fit.sems = parsed.sems;
+  fit.ns = parsed.ns;
+  fit.allRaw = parsed.allRaw;
+  fit.hasReplicates = parsed.hasReplicates;
+  currentFit = fit;
+  renderFitTab(fit);
+  renderStatsTab(fit);
+  renderDiagnosticsTab(fit);
+  renderReportTab(fit);
+  showTab('fit');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  ADD TO COMPARISON
+// ═══════════════════════════════════════════════════════════
+document.getElementById('addBtn').addEventListener('click', () => {
+  if (!currentFit) { alert('Fit a curve first.'); return; }
+  const existing = savedCompounds.findIndex(c => c.name === currentFit.name);
+  if (existing >= 0) savedCompounds[existing] = currentFit;
+  else savedCompounds.push({ ...currentFit });
+  updateSidebar();
+  renderCompareTab();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (savedCompounds.length && !confirm('Clear all saved compounds?')) return;
+  savedCompounds = []; currentFit = null;
+  updateSidebar(); renderCompareTab();
+  document.getElementById('fit-results').style.display = 'none';
+  document.getElementById('fit-empty').style.display = 'block';
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SAMPLE DATA
+// ═══════════════════════════════════════════════════════════
+document.getElementById('hbtn-sample').addEventListener('click', () => {
+  savedCompounds = [];
+  // Samples include triplicates: [conc, r1, r2, r3]
+  const samples = [
+    { name: 'Erlotinib', data: [
+      [0.1,1.0,1.3,1.4],[0.3,3.5,4.0,3.9],[1,11.8,12.9,12.5],[3,30.1,32.4,31.9],
+      [10,63.8,66.1,66.0],[30,84.5,86.2,86.4],[100,93.0,94.8,94.5],[300,96.9,97.8,97.8]], color: COLORS[0] },
+    { name: 'Gefitinib', data: [
+      [0.1,0.6,0.9,0.9],[0.3,2.6,3.1,3.0],[1,9.2,10.2,9.7],[3,24.5,26.0,25.7],
+      [10,54.0,55.9,55.7],[30,77.8,79.5,79.4],[100,89.5,90.9,90.5],[300,94.8,95.8,96.2]], color: COLORS[1] },
+    { name: 'Afatinib',  data: [
+      [0.01,1.8,2.3,2.2],[0.03,5.0,5.6,5.6],[0.1,14.1,15.3,15.0],[0.3,35.0,37.0,36.6],
+      [1,67.0,69.4,68.8],[3,86.5,87.7,87.7],[10,94.4,95.6,95.3],[30,97.3,98.3,98.4]], color: COLORS[2] },
+  ];
+  samples.forEach((s, idx) => {
+    // parse triplicates through parseInput-like logic
+    const grouped = {};
+    s.data.forEach(row => {
+      const c = row[0], vals = row.slice(1);
+      grouped[c] = { c, vals };
+    });
+    const concs=[], resps=[], sds=[], sems=[], ns=[], allRaw=[];
+    Object.values(grouped).forEach(({c, vals}) => {
+      const m = mean(vals), sd = stdSample(vals);
+      concs.push(c); resps.push(m); sds.push(sd);
+      sems.push(sd/Math.sqrt(vals.length)); ns.push(vals.length);
+      allRaw.push({c, vals, mean:m, sd, sem:sd/Math.sqrt(vals.length), n:vals.length});
+    });
+    const fit = fitCurve(concs, resps, '4PL', 'free');
+    if (fit) {
+      fit.name = s.name; fit.color = s.color;
+      fit.sds=sds; fit.sems=sems; fit.ns=ns; fit.allRaw=allRaw; fit.hasReplicates=true;
+      savedCompounds.push(fit);
+    }
+  });
+  currentFit = savedCompounds[0];
+  updateSidebar();
+  renderFitTab(currentFit);
+  renderStatsTab(currentFit);
+  renderDiagnosticsTab(currentFit);
+  renderReportTab(currentFit);
+  renderCompareTab();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════════════
+function updateSidebar() {
+  document.getElementById('cpd-count').textContent = savedCompounds.length;
+  const list = document.getElementById('cpd-list');
+  if (!savedCompounds.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:12px 0"><div style="font-size:11px;color:#94a3b8">No compounds saved yet</div></div>';
+    return;
+  }
+  list.innerHTML = savedCompounds.map((c, i) => `
+    <div class="cpd-item ${currentFit&&currentFit.name===c.name?'active':''}" onclick="loadCompound(${i})">
+      <span class="color-dot" style="background:${c.color}"></span>
+      <span class="cpd-name">${c.name}</span>
+      <div class="cpd-meta">${c.model} · ${c.unit} · n=${c.n}</div>
+      <div class="cpd-ic50">IC50 = ${formatIC50(c.ic50, c.concUnit)}</div>
+      <button class="cpd-del" onclick="event.stopPropagation();deleteCompound(${i})">×</button>
+    </div>`).join('');
+}
+
+function loadCompound(i) {
+  currentFit = savedCompounds[i];
+  updateSidebar();
+  renderFitTab(currentFit);
+  renderStatsTab(currentFit);
+  renderDiagnosticsTab(currentFit);
+  renderReportTab(currentFit);
+  showTab('fit');
+}
+
+function deleteCompound(i) {
+  savedCompounds.splice(i, 1);
+  if (currentFit === savedCompounds[i]) currentFit = savedCompounds[0] || null;
+  updateSidebar();
+  renderCompareTab();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER FIT TAB
+// ═══════════════════════════════════════════════════════════
+function renderFitTab(fit) {
+  document.getElementById('fit-empty').style.display = 'none';
+  document.getElementById('fit-results').style.display = 'block';
+
+  // metrics
+  const qualColor = fit.r2 >= 0.99 ? '#16a34a' : fit.r2 >= 0.95 ? '#d97706' : '#dc2626';
+  const sdStr = fit.ic50SD > 0 ? formatIC50(fit.ic50SD, fit.concUnit) : 'n/a';
+  // For decreasing curves: bottom = high-conc plateau (Emin), top label flipped
+  const topLabel    = fit.isDecreasing ? 'Baseline (E0)' : 'Top (Emax)';
+  const bottomLabel = fit.isDecreasing ? 'Emin (high conc)' : 'Bottom';
+  const topVal      = fit.isDecreasing ? fit.bottom.toFixed(1) : fit.top.toFixed(1);
+  const bottomVal   = fit.isDecreasing ? fit.top.toFixed(1)   : fit.bottom.toFixed(1);
+  document.getElementById('fit-metrics').innerHTML = `
+    <div class="metric-box accent-blue" style="grid-column:span 2">
+      <div class="mv">${formatIC50(fit.ic50, fit.concUnit)}</div>
+      <div class="ml">IC50</div>
+      <div style="font-size:11px;color:#64748b;margin-top:3px">SD: ${sdStr}</div>
+    </div>
+    <div class="metric-box accent-green"><div class="mv">${fit.hill.toFixed(3)}</div><div class="ml">Hill Slope</div></div>
+    <div class="metric-box accent-purple"><div class="mv">${topVal}${fit.unit.includes('%')?'%':''}</div><div class="ml">${topLabel}</div></div>
+    <div class="metric-box accent-amber"><div class="mv">${bottomVal}${fit.unit.includes('%')?'%':''}</div><div class="ml">${bottomLabel}</div></div>
+    <div class="metric-box" style="border-color:${qualColor}22"><div class="mv" style="color:${qualColor}">${(fit.r2*100).toFixed(2)}%</div><div class="ml">R²</div></div>`;
+
+  // chart
+  document.getElementById('fit-chart-title').textContent = `${fit.name} — Dose–Response Curve`;
+
+  const logConcs = fit.concArr.map(c => Math.log10(c));
+  // X-axis: snapped to integer log ticks, with small cosmetic padding
+  const rawMinLog = Math.min(...logConcs);
+  const rawMaxLog = Math.max(...logConcs);
+  const axisMinLog = Math.floor(rawMinLog) - 0.15;   // axis slightly beyond first point
+  const axisMaxLog = Math.ceil(rawMaxLog)  + 0.15;   // axis slightly beyond last point
+  // Curve line: exactly from min to max data concentration — no extrapolation
+  const curveMinLog = rawMinLog;
+  const curveMaxLog = rawMaxLog;
+  // Nice integer tick positions
+  const xTickVals = [];
+  for (let t = Math.floor(rawMinLog); t <= Math.ceil(rawMaxLog); t++) xTickVals.push(t);
+
+  const curvePoints = 300;
+  const curveX = [], curveY = [];
+  for (let i = 0; i <= curvePoints; i++) {
+    const logC = curveMinLog + (curveMaxLog - curveMinLog) * i / curvePoints;
+    const c = Math.pow(10, logC);
+    curveX.push(logC);
+    curveY.push(fit.model === '3PL'
+      ? threePL(c, fit.top, fit.ic50, fit.hill)
+      : fourPL(c, fit.bottom, fit.top, fit.ic50, fit.hill));
+  }
+
+  // Draw error bars via Chart.js animation callback (Chart.js 4.x compatible)
+  function drawErrorBars(chart, fit) {
+    if (!fit || !fit.hasReplicates || !fit.sds) return;
+    const ctx2 = chart.ctx;
+    const xScale = chart.scales.x;
+    const yScale = chart.scales.y;
+    if (!xScale || !yScale) return;
+    ctx2.save();
+    ctx2.strokeStyle = fit.color;
+    ctx2.lineWidth = 2;
+    ctx2.setLineDash([]);
+    fit.concArr.forEach((c, i) => {
+      const sd = fit.sds[i] || 0;
+      if (sd === 0) return;
+      const xPx  = xScale.getPixelForValue(Math.log10(c));
+      const yMean = fit.respArr[i];
+      const yTopPx = yScale.getPixelForValue(yMean + sd);
+      const yBotPx = yScale.getPixelForValue(yMean - sd);
+      const capW = 4;
+      ctx2.beginPath();
+      // vertical line
+      ctx2.moveTo(xPx, yTopPx);
+      ctx2.lineTo(xPx, yBotPx);
+      // top cap
+      ctx2.moveTo(xPx - capW, yTopPx);
+      ctx2.lineTo(xPx + capW, yTopPx);
+      // bottom cap
+      ctx2.moveTo(xPx - capW, yBotPx);
+      ctx2.lineTo(xPx + capW, yBotPx);
+      ctx2.stroke();
+    });
+    ctx2.restore();
+  }
+
+  if (chartInstances.fit) { try { chartInstances.fit.destroy(); } catch(e){} }
+  const pointLabel = fit.hasReplicates ? 'Mean +/- SD' : 'Data Points';
+
+  chartInstances.fit = new Chart(document.getElementById('fit-chart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Fitted Curve',
+          data: curveX.map((x, i) => ({ x, y: curveY[i] })),
+          type: 'line',
+          borderColor: fit.color,
+          borderWidth: 2.5,
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0.3,
+          order: 1
+        },
+        {
+          label: pointLabel,
+          data: fit.concArr.map((c, i) => ({ x: Math.log10(c), y: fit.respArr[i] })),
+          backgroundColor: fit.color,
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          borderColor: '#fff',
+          borderWidth: 2,
+          order: 0
+        },
+        {
+          label: 'IC50 = ' + formatIC50(fit.ic50, fit.concUnit),
+          data: [{ x: Math.log10(fit.ic50), y: 50 }],
+          backgroundColor: '#dc2626',
+          pointRadius: 9,
+          pointStyle: 'crossRot',
+          borderColor: '#dc2626',
+          borderWidth: 2.5,
+          order: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        onComplete: function() { drawErrorBars(this, fit); }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { font: { size: 15, weight: 'bold' }, boxWidth: 18, color: '#1e293b', padding: 20 }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.datasetIndex === 0) return 'Predicted: ' + ctx.parsed.y.toFixed(2);
+              if (ctx.datasetIndex === 2) return 'IC50 = ' + formatIC50(fit.ic50, fit.concUnit);
+              const i = fit.concArr.findIndex(c => Math.abs(Math.log10(c) - ctx.parsed.x) < 0.01);
+              const sdStr = (fit.sds && i >= 0 && fit.sds[i] > 0) ? ' +/- ' + fit.sds[i].toFixed(2) + ' SD' : '';
+              const nStr  = (fit.ns  && i >= 0) ? ' (n=' + fit.ns[i] + ')' : '';
+              return fit.unit + ': ' + ctx.parsed.y.toFixed(2) + sdStr + nStr;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: axisMinLog,
+          max: axisMaxLog,
+          title: { display: true, text: 'log10 [Concentration (' + fit.concUnit + ')]', font: { size: 15, weight: 'bold' }, color: '#1e293b', padding: { top: 8 } },
+          ticks: {
+            color: '#1e293b',
+            font: { size: 14, weight: 'bold' },
+            stepSize: 1,
+            callback: function(value) {
+              const rounded = Math.round(value * 10) / 10;
+              if (!xTickVals.some(t => Math.abs(t - rounded) < 0.05)) return null;
+              const v = rounded;
+              if (v === 0)  return '1';
+              if (v === 1)  return '10';
+              if (v === 2)  return '100';
+              if (v === 3)  return '1000';
+              if (v === 4)  return '10000';
+              if (v === -1) return '0.1';
+              if (v === -2) return '0.01';
+              if (v === -3) return '0.001';
+              return '10^' + v;
+            }
+          },
+          grid: { display: false },
+          border: { color: '#64748b', width: 2 }
+        },
+        y: {
+          title: { display: true, text: fit.unit, font: { size: 15, weight: 'bold' }, color: '#1e293b', padding: { bottom: 8 } },
+          ticks: { color: '#1e293b', font: { size: 14, weight: 'bold' } },
+          grid: { display: false },
+          border: { color: '#64748b', width: 2 },
+          min: Math.min(0, Math.min(...fit.respArr) - 5),
+          max: Math.max(110, Math.max(...fit.respArr) + 5)
+        }
+      }
+    }
+  });
+
+  // formula box
+  const ic50Str = formatIC50(fit.ic50, fit.concUnit);
+  const ic50SDStr = fit.ic50SD > 0 ? ' +/- ' + formatIC50(fit.ic50SD, fit.concUnit) + ' (bootstrap SD)' : '';
+  const repInfo = fit.hasReplicates
+    ? `  |  Replicates: ${fit.ns ? fit.ns.join('/') : ''} per conc (mean ± SD plotted)`
+    : `  |  n = ${fit.n} (single values)`;
+  document.getElementById('fit-formula').innerHTML =
+    fit.model === '3PL'
+      ? `Model: 3PL (Hill)  |  y = Top / (1 + (IC50/x)^h)\n` +
+        `IC50 = ${ic50Str}${ic50SDStr}  |  h (Hill slope) = ${fit.hill.toFixed(3)}  |  Top = ${fit.top.toFixed(2)}  |  Bottom = 0 (fixed)\n` +
+        `R² = ${fit.r2.toFixed(5)}  |  RMSE = ${fit.rmse.toFixed(3)}  |  AIC = ${fit.aic.toFixed(1)}  |  n = ${fit.n} concentrations${repInfo}`
+      : `Model: 4PL (four-parameter logistic)  |  y = Bottom + (Top − Bottom) / (1 + (IC50/x)^h)\n` +
+        `IC50 = ${ic50Str}${ic50SDStr}  |  h (Hill slope) = ${fit.hill.toFixed(3)}  |  Top = ${fit.top.toFixed(2)}  |  Bottom = ${fit.bottom.toFixed(2)}\n` +
+        `R² = ${fit.r2.toFixed(5)}  |  RMSE = ${fit.rmse.toFixed(3)}  |  AIC = ${fit.aic.toFixed(1)}  |  n = ${fit.n} concentrations${repInfo}`;
+
+  // params table
+  document.getElementById('fit-params-table').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Parameter</th><th>Symbol</th><th>Value</th><th>95% CI</th><th>Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>IC50</td><td class="mono">IC50</td><td class="mono" style="color:#2563eb;font-weight:700">${formatIC50(fit.ic50, fit.concUnit)}</td>
+          <td class="mono" style="font-size:10px">${formatIC50(fit.ic50CI[0],fit.concUnit)} – ${formatIC50(fit.ic50CI[1],fit.concUnit)}</td>
+          <td>Concentration giving 50% effect</td></tr>
+        <tr><td>IC50 SD</td><td class="mono">SD<sub>IC50</sub></td>
+          <td class="mono" style="color:#7c3aed;font-weight:600">${fit.ic50SD > 0 ? formatIC50(fit.ic50SD, fit.concUnit) : 'n/a'}</td>
+          <td class="mono" style="font-size:10px">Bootstrap (n=150)</td>
+          <td>Standard deviation of IC50 from 150 bootstrap resamples; reflects estimation uncertainty</td></tr>
+        <tr><td>Hill Slope</td><td class="mono">h</td><td class="mono" style="color:${fit.hill>1.5?'#dc2626':fit.hill<0.7?'#2563eb':'#16a34a'};font-weight:700">${fit.hill.toFixed(4)}</td>
+          <td class="mono" style="font-size:10px">${fit.hillCI[0].toFixed(3)} – ${fit.hillCI[1].toFixed(3)}</td>
+          <td>${fit.hill>1.5?'Steep / positive cooperativity':fit.hill<0.7?'Shallow / negative cooperativity':'Normal sigmoidal (no cooperativity)'}</td></tr>
+        <tr><td>Top (Emax)</td><td class="mono">Top</td><td class="mono">${fit.top.toFixed(3)}</td>
+          <td>—</td><td>${fit.unit} at saturating concentration</td></tr>
+        <tr><td>Bottom (E0)</td><td class="mono">Bottom</td><td class="mono">${fit.bottom.toFixed(3)}</td>
+          <td>—</td><td>${fit.unit} at zero concentration (baseline)</td></tr>
+        <tr><td>R²</td><td class="mono">R²</td>
+          <td class="mono" style="color:${fit.r2>=0.99?'#16a34a':fit.r2>=0.95?'#d97706':'#dc2626'};font-weight:700">${fit.r2.toFixed(5)}</td>
+          <td>—</td><td>${fit.r2>=0.99?'Excellent fit':fit.r2>=0.95?'Good fit':fit.r2>=0.9?'Acceptable fit':'Poor fit — check data'}</td></tr>
+        <tr><td>RMSE</td><td class="mono">RMSE</td><td class="mono">${fit.rmse.toFixed(4)}</td><td>—</td><td>Root mean square error of residuals</td></tr>
+        <tr><td>AIC</td><td class="mono">AIC</td><td class="mono">${fit.aic.toFixed(2)}</td><td>—</td><td>Lower = better model; use for model comparison</td></tr>
+      </tbody>
+    </table></div>`;
+
+  // insights
+  const insights = generateInsights(fit);
+  document.getElementById('fit-insights').innerHTML = insights.map(ins =>
+    `<div class="insight-card ${ins.cls}"><div class="ic-title">${ins.title}</div>${ins.body}${ins.stat?`<div class="ic-stat">${ins.stat}</div>`:''}</div>`
+  ).join('');
+}
+
+function generateInsights(fit) {
+  const ins = [];
+  const r2 = fit.r2, hill = fit.hill, ic50 = fit.ic50, unit = fit.concUnit;
+
+  if (r2 >= 0.99) ins.push({ cls: 'ic-positive', title: 'Excellent curve fit', body: `R² = ${r2.toFixed(4)} indicates an excellent sigmoidal dose–response relationship. The ${fit.model} model describes the data very well.`, stat: `R² = ${r2.toFixed(5)} | RMSE = ${fit.rmse.toFixed(3)}` });
+  else if (r2 >= 0.95) ins.push({ cls: 'ic-warning', title: 'Good curve fit', body: `R² = ${r2.toFixed(4)} indicates a good fit. Minor deviations may reflect biological variability or outliers.`, stat: `R² = ${r2.toFixed(5)}` });
+  else if (r2 >= 0.9) ins.push({ cls: 'ic-warning', title: 'Acceptable fit — review data', body: `R² = ${r2.toFixed(4)}. Consider checking for outliers or using a different curve model.`, stat: `R² = ${r2.toFixed(5)}` });
+  else ins.push({ cls: 'ic-negative', title: 'Poor curve fit', body: `R² = ${r2.toFixed(4)} suggests the model fits poorly. Verify data quality, check for missing plateau, or try a different model.`, stat: `R² = ${r2.toFixed(5)}` });
+
+  if (hill > 1.5) ins.push({ cls: 'ic-warning', title: `Steep Hill slope (h = ${hill.toFixed(2)}) — positive cooperativity`, body: `Hill slope > 1.5 suggests positive cooperativity or a two-state mechanism. The transition from inactive to active occurs over a narrow concentration range. This may indicate multiple binding sites or an allosteric mechanism.`, stat: `h = ${hill.toFixed(4)} | 95% CI: ${fit.hillCI[0].toFixed(3)} – ${fit.hillCI[1].toFixed(3)}` });
+  else if (hill < 0.7) ins.push({ cls: 'ic-info', title: `Shallow Hill slope (h = ${hill.toFixed(2)}) — negative cooperativity`, body: `Hill slope < 0.7 may indicate negative cooperativity, heterogeneous receptor population, or partial agonism. Consider whether a two-site model would better describe the data.`, stat: `h = ${hill.toFixed(4)}` });
+  else ins.push({ cls: 'ic-positive', title: `Normal Hill slope (h = ${hill.toFixed(2)}) — simple binding`, body: `Hill slope close to 1.0 is consistent with a simple 1:1 bimolecular interaction at a single binding site. No evidence of cooperativity.`, stat: `h = ${hill.toFixed(4)}` });
+
+  const ciWidth = Math.log10(fit.ic50CI[1]) - Math.log10(fit.ic50CI[0]);
+  if (ciWidth < 0.5) ins.push({ cls: 'ic-positive', title: 'Narrow IC50 confidence interval — precise estimate', body: `The 95% CI spans ${ciWidth.toFixed(2)} log units, indicating a well-constrained IC50 estimate.`, stat: `IC50 = ${formatIC50(ic50,unit)} | CI: ${formatIC50(fit.ic50CI[0],unit)} – ${formatIC50(fit.ic50CI[1],unit)}` });
+  else if (ciWidth > 1.0) ins.push({ cls: 'ic-warning', title: 'Wide IC50 confidence interval — add more data points', body: `The 95% CI spans ${ciWidth.toFixed(2)} log units. Consider adding more concentrations around the IC50 value (${formatIC50(ic50,unit)}) to narrow the estimate.`, stat: `CI width = ${ciWidth.toFixed(2)} log units` });
+
+  if (fit.top < 80) ins.push({ cls: 'ic-warning', title: 'Incomplete upper plateau (Emax < 80%)', body: `Top = ${fit.top.toFixed(1)}%. The curve has not reached full saturation. Extend the concentration range to confirm the maximum response.` });
+  if (fit.bottom > 20) ins.push({ cls: 'ic-warning', title: 'Elevated baseline (Bottom > 20%)', body: `Bottom = ${fit.bottom.toFixed(1)}%. The lower asymptote is elevated, which may indicate incomplete inhibition, assay interference, or a partial agonist.` });
+
+  return ins;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATISTICS TAB
+// ═══════════════════════════════════════════════════════════
+function renderStatsTab(fit) {
+  document.getElementById('stats-empty').style.display = 'none';
+  document.getElementById('stats-results').style.display = 'block';
+
+  // residuals scatter
+  if (chartInstances.res) { try { chartInstances.res.destroy(); } catch(e){} }
+  chartInstances.res = new Chart(document.getElementById('res-chart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Residuals',
+          data: fit.concArr.map((c, i) => ({ x: Math.log10(c), y: fit.resids[i] })),
+          backgroundColor: fit.color, pointRadius: 6, pointHoverRadius: 9,
+          borderColor: '#fff', borderWidth: 2
+        },
+        {
+          label: 'Zero line',
+          data: [{ x: Math.log10(Math.min(...fit.concArr)), y: 0 }, { x: Math.log10(Math.max(...fit.concArr)), y: 0 }],
+          type: 'line', borderColor: '#dc2626', borderDash: [4, 3],
+          borderWidth: 1.5, pointRadius: 0, backgroundColor: 'transparent'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'log10[Conc]', font: { size: 10 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { title: { display: true, text: 'Residual', font: { size: 10 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  // obs vs pred
+  if (chartInstances.obsPred) { try { chartInstances.obsPred.destroy(); } catch(e){} }
+  const allVals = [...fit.respArr, ...fit.predicted];
+  const minV = Math.min(...allVals) - 2, maxV = Math.max(...allVals) + 2;
+  chartInstances.obsPred = new Chart(document.getElementById('obs-pred-chart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Observed vs Predicted',
+          data: fit.respArr.map((y, i) => ({ x: fit.predicted[i], y })),
+          backgroundColor: fit.color, pointRadius: 6, borderColor: '#fff', borderWidth: 2
+        },
+        {
+          label: 'Perfect fit',
+          data: [{ x: minV, y: minV }, { x: maxV, y: maxV }],
+          type: 'line', borderColor: '#94a3b8', borderDash: [4, 3],
+          borderWidth: 1.5, pointRadius: 0, backgroundColor: 'transparent'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Predicted', font: { size: 10 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { title: { display: true, text: 'Observed', font: { size: 10 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  // GOF table
+  const mae = fit.resids.reduce((a, r) => a + Math.abs(r), 0) / fit.n;
+  const maxRes = Math.max(...fit.resids.map(Math.abs));
+  const cv = (fit.rmse / mean(fit.respArr) * 100);
+  document.getElementById('gof-table').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Statistic</th><th>Value</th><th>Threshold</th><th>Assessment</th></tr></thead>
+      <tbody>
+        <tr><td>R² (coefficient of determination)</td><td class="mono">${fit.r2.toFixed(5)}</td><td class="mono">> 0.99</td>
+          <td><span class="badge ${fit.r2>=0.99?'badge-good':fit.r2>=0.95?'badge-warn':'badge-bad'}">${fit.r2>=0.99?'Excellent':fit.r2>=0.95?'Good':'Poor'}</span></td></tr>
+        <tr><td>RMSE (root mean square error)</td><td class="mono">${fit.rmse.toFixed(4)}</td><td>—</td><td>Lower is better</td></tr>
+        <tr><td>MAE (mean absolute error)</td><td class="mono">${mae.toFixed(4)}</td><td>—</td><td>Lower is better</td></tr>
+        <tr><td>CV% (coefficient of variation)</td><td class="mono">${cv.toFixed(2)}%</td><td class="mono">< 20%</td>
+          <td><span class="badge ${cv<20?'badge-good':cv<30?'badge-warn':'badge-bad'}">${cv<20?'Acceptable':cv<30?'Borderline':'High variability'}</span></td></tr>
+        <tr><td>Max residual</td><td class="mono">${maxRes.toFixed(4)}</td><td>—</td><td>Check for outliers if large</td></tr>
+        <tr><td>AIC (Akaike Information Criterion)</td><td class="mono">${fit.aic.toFixed(2)}</td><td>—</td><td>Use for model comparison (lower = better)</td></tr>
+        <tr><td>Data points (n)</td><td class="mono">${fit.n}</td><td class="mono">≥ 6</td>
+          <td><span class="badge ${fit.n>=6?'badge-good':fit.n>=4?'badge-warn':'badge-bad'}">${fit.n>=6?'Sufficient':fit.n>=4?'Marginal':'Insufficient'}</span></td></tr>
+      </tbody>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DIAGNOSTICS TAB
+// ═══════════════════════════════════════════════════════════
+function renderDiagnosticsTab(fit) {
+  document.getElementById('diag-empty').style.display = 'none';
+  document.getElementById('diag-results').style.display = 'block';
+
+  const resStd = std(fit.resids);
+  const outliers = fit.resids.map((r, i) => ({ i, r, isOutlier: Math.abs(r) > 2.5 * resStd }));
+  const hasOutliers = outliers.some(o => o.isOutlier);
+
+  const checks = [
+    { ok: fit.r2 >= 0.99, warn: fit.r2 >= 0.95, title: 'Curve fit quality', body: `R² = ${fit.r2.toFixed(4)}. ${fit.r2>=0.99?'Excellent sigmoidal fit.':fit.r2>=0.95?'Good fit with minor deviations.':'Consider reviewing data or model.'}` },
+    { ok: !hasOutliers, warn: false, title: 'Outlier detection (2.5σ threshold)', body: hasOutliers ? `${outliers.filter(o=>o.isOutlier).length} potential outlier(s) detected at concentrations: ${outliers.filter(o=>o.isOutlier).map(o=>fit.concArr[o.i].toFixed(2)).join(', ')} ${fit.concUnit}. Review these points.` : 'No outliers detected. All residuals within ±2.5σ.' },
+    (() => {
+      if (fit.isDecreasing) {
+        // bottom = low-conc (high) plateau, top = high-conc (low) plateau
+        const hiPlateau = fit.bottom, loPlateau = fit.top;
+        const hiOk = hiPlateau > 70; const loOk = loPlateau < 30;
+        return { ok: hiOk && loOk, warn: hiOk || loOk, title: 'Plateau coverage (decreasing curve)',
+          body: `Baseline (low-conc) = ${hiPlateau.toFixed(1)}${fit.unit.includes('%')?'%':''}, ` +
+                `Minimum (high-conc) = ${loPlateau.toFixed(1)}${fit.unit.includes('%')?'%':''}. ` +
+                (!hiOk ? 'Baseline plateau not reached — add lower concentrations. ' : '') +
+                (!loOk ? 'Minimum plateau not reached — add higher concentrations.' : 'Both plateaus well-defined.') };
+      } else {
+        return { ok: fit.top > 80 && fit.top < 130, warn: fit.top > 70 && fit.top <= 80,
+          title: 'Upper plateau coverage',
+          body: fit.top >= 80 ? 'Top = '+fit.top.toFixed(1)+'%. Adequate upper plateau.' : 'Top = '+fit.top.toFixed(1)+'%. Extend to higher concentrations.' };
+      }
+    })(),
+    (() => {
+      if (fit.isDecreasing) return null; // covered above
+      return { ok: fit.bottom < 20, warn: fit.bottom >= 10 && fit.bottom < 20,
+        title: 'Lower plateau (baseline)',
+        body: fit.bottom < 10 ? 'Bottom = '+fit.bottom.toFixed(1)+'%. Clean baseline.' : 'Bottom = '+fit.bottom.toFixed(1)+'%. Elevated baseline — check assay.' };
+    })(),
+    { ok: fit.n >= 6, warn: fit.n >= 4, title: 'Data density', body: fit.n >= 8 ? `${fit.n} data points — excellent coverage of the dose–response curve.` : fit.n >= 6 ? `${fit.n} data points — adequate. Adding 2–3 more around IC50 would improve CI.` : `${fit.n} data points — marginal. Recommend at least 6–8 concentration points.` },
+    { ok: Math.abs(fit.hill - 1) <= 0.5, warn: Math.abs(fit.hill - 1) <= 1.0, title: 'Hill slope interpretation', body: `h = ${fit.hill.toFixed(3)}. ${fit.hill>1.5?'Positive cooperativity detected.':fit.hill<0.7?'Possible negative cooperativity or mixed population.':'Consistent with standard Michaelis-Menten binding.'}` },
+  ];
+
+  document.getElementById('diag-content').innerHTML = checks.filter(Boolean).map(c => `
+    <div class="insight-card ${c.ok?'ic-positive':c.warn?'ic-warning':'ic-negative'}">
+      <div class="ic-title">${c.ok?'check':c.warn?'warn':'fail'} ${c.title}</div>${c.body}
+    </div>`).join('');
+
+  // data point table — show SD/SEM when replicates present
+  const hasRep = fit.hasReplicates;
+  document.getElementById('datapoint-table').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th>Conc (${fit.concUnit})</th><th>log10[Conc]</th>
+        ${hasRep ? '<th>n</th><th>Mean</th><th>SD</th><th>SEM</th>' : '<th>Observed</th>'}
+        <th>Predicted</th><th>Residual</th><th>Std. Res.</th><th>Status</th>
+      </tr></thead>
+      <tbody>${fit.concArr.map((c, i) => {
+        const stdRes = resStd > 0 ? fit.resids[i] / resStd : 0;
+        const isOut = Math.abs(stdRes) > 2.5;
+        const sdVal = fit.sds ? fit.sds[i] : 0;
+        const semVal = fit.sems ? fit.sems[i] : 0;
+        const nVal = fit.ns ? fit.ns[i] : 1;
+        return `<tr>
+          <td>${i+1}</td>
+          <td class="mono">${c.toExponential(2)}</td>
+          <td class="mono">${Math.log10(c).toFixed(3)}</td>
+          ${hasRep
+            ? `<td class="mono">${nVal}</td>
+               <td class="mono">${fit.respArr[i].toFixed(3)}</td>
+               <td class="mono" style="color:${sdVal>fit.rmse*1.5?'#d97706':'#1e293b'}">${sdVal.toFixed(3)}</td>
+               <td class="mono">${semVal.toFixed(3)}</td>`
+            : `<td class="mono">${fit.respArr[i].toFixed(3)}</td>`}
+          <td class="mono">${fit.predicted[i].toFixed(3)}</td>
+          <td class="mono" style="color:${Math.abs(fit.resids[i])>fit.rmse*2?'#dc2626':'#16a34a'}">${fit.resids[i].toFixed(4)}</td>
+          <td class="mono">${stdRes.toFixed(3)}</td>
+          <td><span class="badge ${isOut?'badge-bad':'badge-good'}">${isOut?'Outlier?':'OK'}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMPARISON TAB
+// ═══════════════════════════════════════════════════════════
+function renderCompareTab() {
+  const empty = document.getElementById('compare-empty');
+  const results = document.getElementById('compare-results');
+  if (savedCompounds.length < 1) { empty.style.display = 'block'; results.style.display = 'none'; return; }
+  empty.style.display = 'none'; results.style.display = 'block';
+
+  // overlay chart
+  const allConcs = savedCompounds.flatMap(c => c.concArr);
+  const minLog = Math.log10(Math.min(...allConcs)) - 0.5;
+  const maxLog = Math.log10(Math.max(...allConcs)) + 0.5;
+  const curvePoints = 120;
+
+  const datasets = [];
+  savedCompounds.forEach(fit => {
+    const curveX = [], curveY = [];
+    for (let i = 0; i <= curvePoints; i++) {
+      const lc = minLog + (maxLog - minLog) * i / curvePoints;
+      const c = Math.pow(10, lc);
+      curveX.push(lc);
+      curveY.push(fit.model === '3PL' ? threePL(c, fit.top, fit.ic50, fit.hill) : fourPL(c, fit.bottom, fit.top, fit.ic50, fit.hill));
+    }
+    datasets.push({
+      label: fit.name,
+      data: curveX.map((x, i) => ({ x, y: curveY[i] })),
+      type: 'line', borderColor: fit.color, borderWidth: 2.5,
+      backgroundColor: 'transparent', pointRadius: 0, tension: 0.4
+    });
+    datasets.push({
+      label: `${fit.name} data`,
+      data: fit.concArr.map((c, i) => ({ x: Math.log10(c), y: fit.respArr[i] })),
+      backgroundColor: fit.color, pointRadius: 5, borderColor: '#fff', borderWidth: 2,
+      showInLegend: false
+    });
+  });
+
+  if (chartInstances.compare) { try { chartInstances.compare.destroy(); } catch(e){} }
+  chartInstances.compare = new Chart(document.getElementById('compare-chart'), {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true, position: 'top',
+          labels: { filter: item => !item.text.includes(' data'), font: { size: 11 }, boxWidth: 14, color: '#374151' }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'log10[Concentration]', font: { size: 11 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { title: { display: true, text: 'Response', font: { size: 11 }, color: '#64748b' }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  // comparison table
+  const sorted = [...savedCompounds].sort((a, b) => a.ic50 - b.ic50);
+  const bestIC50 = sorted[0].ic50;
+  document.getElementById('compare-table').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>Compound</th><th>IC50</th><th>pIC50</th><th>Hill Slope</th><th>Emax (Top)</th><th>Bottom</th><th>R²</th><th>Model</th><th>Fold vs Best</th><th>Rank</th></tr></thead>
+      <tbody>${sorted.map((c, i) => {
+        const fold = (c.ic50 / bestIC50).toFixed(1);
+        const pIC50 = (-Math.log10(c.ic50 * (c.concUnit==='nM'?1e-9:c.concUnit==='µM'?1e-6:1e-3))).toFixed(3);
+        return `<tr>
+          <td><span class="color-dot" style="background:${c.color}"></span></td>
+          <td style="font-weight:600">${c.name}</td>
+          <td class="mono" style="color:#2563eb;font-weight:700">${formatIC50(c.ic50,c.concUnit)}</td>
+          <td class="mono" style="color:#7c3aed">${c.ic50SD>0?formatIC50(c.ic50SD,c.concUnit):'—'}</td>
+          <td class="mono">${pIC50}</td>
+          <td class="mono" style="color:${c.hill>1.5?'#dc2626':'#1e293b'}">${c.hill.toFixed(3)}</td>
+          <td class="mono">${c.top.toFixed(2)}</td>
+          <td class="mono">${c.bottom.toFixed(2)}</td>
+          <td class="mono" style="color:${c.r2>=0.99?'#16a34a':c.r2>=0.95?'#d97706':'#dc2626'}">${c.r2.toFixed(4)}</td>
+          <td><span class="badge badge-blue">${c.model}</span></td>
+          <td class="mono" style="color:${i===0?'#16a34a':'#64748b'}">${fold}×</td>
+          <td><span class="badge ${i===0?'badge-good':i===1?'badge-warn':'badge-bad'}">#${i+1}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REPORT TAB
+// ═══════════════════════════════════════════════════════════
+function renderReportTab(fit) {
+  document.getElementById('report-empty').style.display = 'none';
+  document.getElementById('report-content').style.display = 'block';
+  const pIC50 = (-Math.log10(fit.ic50 * (fit.concUnit==='nM'?1e-9:fit.concUnit==='µM'?1e-6:1e-3))).toFixed(3);
+  document.getElementById('report-body').innerHTML = `
+    <div class="result-grid">
+      ${[
+        {l:'IC50',v:formatIC50(fit.ic50,fit.concUnit),sub:'Primary endpoint'},
+        {l:'pIC50',v:pIC50,sub:'-log10(IC50 in M)'},
+        {l:'Hill Slope (h)',v:fit.hill.toFixed(4),sub:fit.cooperativity==='none'?'Normal binding':'Cooperativity detected'},
+        {l:'Emax (Top)',v:`${fit.top.toFixed(2)} ${fit.unit}`,sub:'Maximum response'},
+        {l:'Baseline (Bottom)',v:`${fit.bottom.toFixed(2)} ${fit.unit}`,sub:'Minimum response'},
+        {l:'Curve Fit R²',v:fit.r2.toFixed(5),sub:fit.r2>=0.99?'Excellent':'Review fit quality'},
+      ].map(b=>`<div class="result-box">
+        <div class="rb-label">${b.l}</div>
+        <div class="rb-value">${b.v}</div>
+        <div class="rb-sub">${b.sub}</div>
+      </div>`).join('')}
+    </div>
+    <div style="background:#1e3a5f;color:#e0f0ff;padding:16px;border-radius:8px;font-family:monospace;font-size:12px;line-height:1.9;margin-bottom:16px">
+      Compound: ${fit.name}<br>
+      IC50 = ${formatIC50(fit.ic50,fit.concUnit)}  +/-  ${fit.ic50SD>0?formatIC50(fit.ic50SD,fit.concUnit):'n/a'} SD  (95% CI: ${formatIC50(fit.ic50CI[0],fit.concUnit)} - ${formatIC50(fit.ic50CI[1],fit.concUnit)})<br>
+      pIC50 = ${pIC50}<br>
+      Hill slope h = ${fit.hill.toFixed(4)}  (95% CI: ${fit.hillCI[0].toFixed(3)} – ${fit.hillCI[1].toFixed(3)})<br>
+      Top = ${fit.top.toFixed(3)}  |  Bottom = ${fit.bottom.toFixed(3)}<br>
+      Model: ${fit.model}  |  n = ${fit.n}  |  R² = ${fit.r2.toFixed(5)}  |  RMSE = ${fit.rmse.toFixed(4)}  |  AIC = ${fit.aic.toFixed(2)}
+    </div>
+    ${generateInsights(fit).map(ins=>`<div class="insight-card ${ins.cls}"><div class="ic-title">${ins.title}</div>${ins.body}${ins.stat?`<div class="ic-stat">${ins.stat}</div>`:''}</div>`).join('')}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  % INHIBITION CALCULATOR
+// ═══════════════════════════════════════════════════════════
+
+function parseNums(str) {
+  // Parse comma/space/tab separated numbers, return array of floats
+  return str.split(/[\s,;]+/).map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+}
+
+function meanNums(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN;
+}
+
+function sdNums(arr) {
+  if (arr.length < 2) return 0;
+  const m = meanNums(arr);
+  return Math.sqrt(arr.reduce((a, x) => a + (x - m) ** 2, 0) / (arr.length - 1));
+}
+
+// Core formula: % Inhibition = [1 - (Sample - Blank) / (Control - Blank)] * 100
+function calcPctInhibition(sample, control, blank) {
+  const denom = control - blank;
+  if (Math.abs(denom) < 1e-10) return NaN;
+  return (1 - (sample - blank) / denom) * 100;
+}
+
+// Z-factor = 1 - 3*(sdC + sdS) / |meanC - meanS|
+function zFactor(controlVals, sampleVals) {
+  if (controlVals.length < 2 || sampleVals.length < 2) return null;
+  const sdC = sdNums(controlVals), sdS = sdNums(sampleVals);
+  const mC = meanNums(controlVals), mS = meanNums(sampleVals);
+  const denom = Math.abs(mC - mS);
+  if (denom < 1e-10) return null;
+  return 1 - (3 * (sdC + sdS)) / denom;
+}
+
+let lastBatchResults = []; // [{conc, pctMean, pctSD, pctVals}]
+
+function setInhMode(mode) {
+  document.getElementById('inh-single-panel').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('inh-batch-panel').style.display  = mode === 'batch'  ? '' : 'none';
+  document.getElementById('inh-mode-single').style.cssText =
+    mode === 'single' ? 'border-color:#2563eb;color:#2563eb;font-weight:600' : '';
+  document.getElementById('inh-mode-batch').style.cssText =
+    mode === 'batch'  ? 'border-color:#2563eb;color:#2563eb;font-weight:600' : '';
+  document.getElementById('inh-qc-card').style.display = 'none';
+  document.getElementById('inh-single-result').innerHTML = '';
+  document.getElementById('inh-batch-result').innerHTML = '';
+}
+
+// ── SINGLE MODE ────────────────────────────────────────────────────────────
+function calcSingleInhibition() {
+  const controlVals = parseNums(document.getElementById('inh-control').value);
+  const blankVals   = parseNums(document.getElementById('inh-blank').value);
+  const sampleVals  = parseNums(document.getElementById('inh-samples').value);
+  const conc        = document.getElementById('inh-conc').value.trim();
+  const concUnit    = document.getElementById('inh-concunit-s').value;
+  const res         = document.getElementById('inh-single-result');
+
+  if (!controlVals.length || !blankVals.length || !sampleVals.length) {
+    res.innerHTML = '<div class="insight-card ic-negative"><div class="ic-title">Missing values</div>Please enter Control, Blank, and Sample readings.</div>';
+    return;
+  }
+
+  const ctrl  = meanNums(controlVals);
+  const blk   = meanNums(blankVals);
+  const pctVals = sampleVals.map(s => calcPctInhibition(s, ctrl, blk));
+  const pctMean = meanNums(pctVals);
+  const pctSD   = sdNums(pctVals);
+  const cvPct   = pctMean !== 0 ? Math.abs(pctSD / pctMean * 100) : 0;
+
+  // Quality flag
+  const qualOk = cvPct < 15;
+  const qualWarn = cvPct >= 15 && cvPct < 25;
+  const qualCls = qualOk ? 'ic-positive' : qualWarn ? 'ic-warning' : 'ic-negative';
+
+  const concLabel = conc ? `<b>${conc} ${concUnit}</b>` : '';
+
+  res.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+      <div class="result-box">
+        <div class="rb-label">Control (mean)</div>
+        <div class="rb-value" style="font-size:16px">${ctrl.toFixed(2)}</div>
+        <div class="rb-sub">n = ${controlVals.length}, SD = ${sdNums(controlVals).toFixed(2)}</div>
+      </div>
+      <div class="result-box">
+        <div class="rb-label">Blank (mean)</div>
+        <div class="rb-value" style="font-size:16px">${blk.toFixed(2)}</div>
+        <div class="rb-sub">n = ${blankVals.length}, SD = ${sdNums(blankVals).toFixed(2)}</div>
+      </div>
+      <div class="result-box" style="border-color:#2563eb;background:#eff6ff">
+        <div class="rb-label">% Inhibition (mean)</div>
+        <div class="rb-value" style="color:#2563eb">${pctMean.toFixed(2)}%</div>
+        <div class="rb-sub">${pctVals.length > 1 ? 'SD = ' + pctSD.toFixed(2) + '%' : 'single value'}</div>
+      </div>
+      <div class="result-box">
+        <div class="rb-label">CV%</div>
+        <div class="rb-value" style="font-size:16px;color:${qualOk?'#16a34a':qualWarn?'#d97706':'#dc2626'}">${cvPct.toFixed(1)}%</div>
+        <div class="rb-sub">${qualOk ? 'Acceptable' : qualWarn ? 'Borderline' : 'High variability'}</div>
+      </div>
+    </div>
+
+    ${pctVals.length > 1 ? `
+    <div class="table-wrap" style="margin-bottom:12px"><table>
+      <thead><tr><th>Replicate</th><th>Raw Signal</th><th>% Inhibition</th><th>Deviation from Mean</th></tr></thead>
+      <tbody>${sampleVals.map((s, i) => `<tr>
+        <td>Rep ${i+1}</td>
+        <td class="mono">${s.toFixed(2)}</td>
+        <td class="mono" style="color:#2563eb;font-weight:600">${pctVals[i].toFixed(2)}%</td>
+        <td class="mono" style="color:${Math.abs(pctVals[i]-pctMean)>2*pctSD?'#dc2626':'#64748b'}">${(pctVals[i]-pctMean>0?'+':'')}${(pctVals[i]-pctMean).toFixed(2)}%</td>
+      </tr>`).join('')}</tbody>
+    </table></div>` : ''}
+
+    <div class="insight-card ${qualCls}">
+      <div class="ic-title">Result${concLabel?' at '+concLabel:''}: ${pctMean.toFixed(2)}% Inhibition${pctSD>0?' ± '+pctSD.toFixed(2)+'% SD':''}</div>
+      Equation: % Inh = [1 - (Sample - Blank) / (Control - Blank)] × 100<br>
+      = [1 - (${meanNums(sampleVals).toFixed(2)} - ${blk.toFixed(2)}) / (${ctrl.toFixed(2)} - ${blk.toFixed(2)})] × 100 = <b>${pctMean.toFixed(2)}%</b>
+      <div class="ic-stat">CV = ${cvPct.toFixed(1)}% | Signal/Background = ${blk > 0 ? (ctrl/blk).toFixed(2) : 'N/A'} | Signal window = ${(ctrl - blk).toFixed(2)}</div>
+    </div>`;
+
+  // Z-factor if enough replicates
+  const zf = zFactor(controlVals, sampleVals);
+  if (zf !== null) {
+    const zClass = zf >= 0.5 ? 'ic-positive' : zf >= 0.0 ? 'ic-warning' : 'ic-negative';
+    res.innerHTML += `<div class="insight-card ${zClass}">
+      <div class="ic-title">Z-factor = ${zf.toFixed(3)}</div>
+      ${zf >= 0.5 ? 'Excellent assay quality (Z >= 0.5). Suitable for HTS.' :
+        zf >= 0.0 ? 'Marginal assay quality (0 <= Z < 0.5). Acceptable for low-throughput screening.' :
+        'Poor assay quality (Z < 0). Signal window too small or variability too high.'}
+      <div class="ic-stat">Z = 1 - 3(SD_control + SD_sample) / |mean_control - mean_sample|</div>
+    </div>`;
+  }
+}
+
+// ── BATCH MODE ─────────────────────────────────────────────────────────────
+function calcBatchInhibition() {
+  const raw = document.getElementById('inh-batch-data').value.trim();
+  const globalCtrlStr = document.getElementById('inh-global-control').value.trim();
+  const globalBlkStr  = document.getElementById('inh-global-blank').value.trim();
+  const res = document.getElementById('inh-batch-result');
+
+  if (!raw) { res.innerHTML = '<div class="insight-card ic-negative">No data entered.</div>'; return; }
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  let controlVals = parseNums(globalCtrlStr);
+  let blankVals   = parseNums(globalBlkStr);
+  const dataRows  = [];
+
+  lines.forEach(line => {
+    const parts = line.split(/[	,;]/).map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    const key = parts[0].toUpperCase();
+    const vals = parts.slice(1).map(parseFloat).filter(v => !isNaN(v));
+    if (key === 'CONTROL' || key === 'CTRL' || key === 'PC' || key === 'MAX') {
+      controlVals = vals;
+    } else if (key === 'BLANK' || key === 'BG' || key === 'NC' || key === 'MIN') {
+      blankVals = vals;
+    } else {
+      const conc = parseFloat(parts[0]);
+      if (!isNaN(conc) && vals.length) dataRows.push({ conc, vals });
+    }
+  });
+
+  if (!controlVals.length || !blankVals.length) {
+    res.innerHTML = '<div class="insight-card ic-negative"><div class="ic-title">Missing Control or Blank</div>Add CONTROL and BLANK rows, or fill in the global fields above.</div>';
+    return;
+  }
+  if (!dataRows.length) {
+    res.innerHTML = '<div class="insight-card ic-negative">No sample rows found.</div>'; return;
+  }
+
+  const ctrl = meanNums(controlVals);
+  const blk  = meanNums(blankVals);
+
+  lastBatchResults = dataRows.map(row => {
+    const pctVals = row.vals.map(s => calcPctInhibition(s, ctrl, blk));
+    const pctMean = meanNums(pctVals);
+    const pctSD   = sdNums(pctVals);
+    return { conc: row.conc, pctMean, pctSD, pctVals, n: row.vals.length };
+  }).sort((a, b) => a.conc - b.conc);
+
+  // Results table
+  res.innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:#475569">
+      Control: ${ctrl.toFixed(2)} (n=${controlVals.length}, SD=${sdNums(controlVals).toFixed(2)}) &nbsp;|&nbsp;
+      Blank: ${blk.toFixed(2)} (n=${blankVals.length}, SD=${sdNums(blankVals).toFixed(2)}) &nbsp;|&nbsp;
+      Signal window: ${(ctrl - blk).toFixed(2)} &nbsp;|&nbsp; S/B ratio: ${blk > 0 ? (ctrl/blk).toFixed(2) : 'N/A'}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Concentration</th>
+        <th>n reps</th>
+        <th>Mean % Inhibition</th>
+        <th>SD (%)</th>
+        <th>CV%</th>
+        <th>Individual values</th>
+        <th>Flag</th>
+      </tr></thead>
+      <tbody>${lastBatchResults.map(r => {
+        const cv = r.pctMean !== 0 ? Math.abs(r.pctSD / r.pctMean * 100) : 0;
+        const flag = r.pctMean > 100 ? 'Over 100%' : r.pctMean < -10 ? 'Negative' : cv > 25 ? 'High CV' : 'OK';
+        const flagCls = flag === 'OK' ? 'badge-good' : 'badge-warn';
+        return `<tr>
+          <td class="mono">${r.conc}</td>
+          <td class="mono">${r.n}</td>
+          <td class="mono" style="color:#2563eb;font-weight:700">${r.pctMean.toFixed(2)}%</td>
+          <td class="mono">${r.pctSD > 0 ? r.pctSD.toFixed(2)+'%' : '—'}</td>
+          <td class="mono" style="color:${cv>25?'#dc2626':cv>15?'#d97706':'#16a34a'}">${r.n > 1 ? cv.toFixed(1)+'%' : '—'}</td>
+          <td style="font-size:10px;font-family:monospace;color:#64748b">${r.pctVals.map(v=>v.toFixed(1)+'%').join(', ')}</td>
+          <td><span class="badge ${flagCls}">${flag}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+
+  // Show QC card
+  const zf = zFactor(controlVals, lastBatchResults.map(r => r.pctVals[0]).filter(v => !isNaN(v)));
+  const sb  = blk > 0 ? (ctrl / blk) : null;
+  const sw  = ctrl - blk;
+  const zClass = zf !== null ? (zf >= 0.5 ? 'ic-positive' : zf >= 0.0 ? 'ic-warning' : 'ic-negative') : 'ic-neutral';
+
+  document.getElementById('inh-qc-card').style.display = '';
+  document.getElementById('inh-qc-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+      <div class="result-box">
+        <div class="rb-label">Signal/Background</div>
+        <div class="rb-value" style="font-size:16px;color:${sb&&sb>=2?'#16a34a':'#d97706'}">${sb ? sb.toFixed(2) : 'N/A'}</div>
+        <div class="rb-sub">Ideal >= 2</div>
+      </div>
+      <div class="result-box">
+        <div class="rb-label">Signal Window</div>
+        <div class="rb-value" style="font-size:16px">${sw.toFixed(1)}</div>
+        <div class="rb-sub">ctrl - blank</div>
+      </div>
+      <div class="result-box">
+        <div class="rb-label">Z-factor</div>
+        <div class="rb-value" style="font-size:16px;color:${zf!==null?(zf>=0.5?'#16a34a':zf>=0?'#d97706':'#dc2626'):'#94a3b8'}">${zf !== null ? zf.toFixed(3) : 'N/A'}</div>
+        <div class="rb-sub">Ideal >= 0.5</div>
+      </div>
+      <div class="result-box">
+        <div class="rb-label">Data Points</div>
+        <div class="rb-value" style="font-size:16px">${lastBatchResults.length}</div>
+        <div class="rb-sub">concentrations</div>
+      </div>
+    </div>
+    <div class="insight-card ${zClass}">
+      <div class="ic-title">${zf !== null ? 'Z-factor = ' + zf.toFixed(3) : 'Z-factor: insufficient replicates'}</div>
+      ${zf === null ? 'Need >= 2 replicates per point to compute Z-factor.' :
+        zf >= 0.5 ? 'Excellent assay quality. Signal window is well-separated from noise. Suitable for HTS.' :
+        zf >= 0.0 ? 'Marginal assay quality. Consider optimizing assay conditions to increase signal window or reduce variability.' :
+        'Poor assay quality. High variability or small signal window. Review pipetting, reagents, and plate uniformity.'}
+    </div>`;
+}
+
+// ── SEND TO FIT CURVE ──────────────────────────────────────────────────────
+function sendToFitCurve() {
+  if (!lastBatchResults.length) {
+    alert('Calculate batch results first.');
+    return;
+  }
+  // Build textarea text: conc, rep1, rep2, rep3 ...
+  const lines = lastBatchResults.map(r => {
+    return r.conc + ', ' + r.pctVals.map(v => v.toFixed(2)).join(', ');
+  });
+  document.getElementById('inp-data').value = lines.join('\n');
+  document.getElementById('inp-unit').value = '% Inhibition';
+  document.getElementById('inh-send-status').textContent = 'Sent! Switch to Curve Fit tab and click Fit Curve.';
+  setTimeout(() => { document.getElementById('inh-send-status').textContent = ''; }, 4000);
+  showTab('fit');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SIDEBAR % INHIBITION CALCULATOR
+// ═══════════════════════════════════════════════════════════
+
+let sbLastBatch = [];  // [{conc, pctVals, pctMean, pctSD}]
+
+function toggleInhCalc() {
+  const panel = document.getElementById('inh-calc-panel');
+  const icon  = document.getElementById('inh-toggle-icon');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? '' : 'none';
+  icon.textContent    = open ? '▲ collapse' : '▼ expand';
+}
+
+function setSbMode(mode) {
+  document.getElementById('sb-single').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('sb-batch').style.display  = mode === 'batch'  ? '' : 'none';
+  const activeStyle   = 'flex:1;font-size:11px;border-color:#2563eb;color:#2563eb;font-weight:600;justify-content:center';
+  const inactiveStyle = 'flex:1;font-size:11px;justify-content:center';
+  document.getElementById('sb-mode-single').style.cssText = mode === 'single' ? activeStyle : inactiveStyle;
+  document.getElementById('sb-mode-batch').style.cssText  = mode === 'batch'  ? activeStyle : inactiveStyle;
+  document.getElementById('sb-single-result').innerHTML = '';
+  document.getElementById('sb-batch-result').innerHTML  = '';
+}
+
+function sbResultBadge(pct, sd, n) {
+  const sdStr = sd > 0 ? ' ± ' + sd.toFixed(1) + '%' : '';
+  const nStr  = n > 1  ? ' (n=' + n + ')' : '';
+  const col   = pct > 70 ? '#16a34a' : pct > 30 ? '#d97706' : '#dc2626';
+  return '<div style="background:#f8fafc;border-radius:6px;padding:8px 10px;border-left:3px solid ' + col + ';margin-top:4px">'
+    + '<span style="font-size:16px;font-weight:700;font-family:monospace;color:' + col + '">' + pct.toFixed(2) + '%</span>'
+    + '<span style="font-size:11px;color:#64748b;margin-left:6px">% Inhibition' + sdStr + nStr + '</span>'
+    + '<div style="font-size:10px;color:#94a3b8;margin-top:3px">'
+    + '= [1 − (S − Blank)/(Ctrl − Blank)] × 100</div>'
+    + '</div>';
+}
+
+function sbCalcSingle() {
+  const ctrlVals = parseNums(document.getElementById('sb-control').value);
+  const blkVals  = parseNums(document.getElementById('sb-blank').value);
+  const smpVals  = parseNums(document.getElementById('sb-samples').value);
+  const res      = document.getElementById('sb-single-result');
+
+  if (!ctrlVals.length || !blkVals.length || !smpVals.length) {
+    res.innerHTML = '<div style="font-size:11px;color:#dc2626;margin-top:4px">Fill in all three fields.</div>';
+    return;
+  }
+
+  const ctrl    = meanNums(ctrlVals);
+  const blk     = meanNums(blkVals);
+  const pctVals = smpVals.map(s => calcPctInhibition(s, ctrl, blk));
+  const pctMean = meanNums(pctVals);
+  const pctSD   = sdNums(pctVals);
+  const cv      = pctMean !== 0 ? Math.abs(pctSD / pctMean * 100) : 0;
+
+  let html = sbResultBadge(pctMean, pctSD, pctVals.length);
+
+  if (pctVals.length > 1) {
+    html += '<div style="margin-top:6px;font-size:10px;font-family:monospace;color:#475569;line-height:1.8">'
+      + pctVals.map((v, i) => 'Rep ' + (i+1) + ': ' + v.toFixed(2) + '%').join(' &nbsp;|&nbsp; ')
+      + '<br>CV: ' + cv.toFixed(1) + '% &nbsp;|&nbsp; '
+      + (cv < 15 ? '<span style="color:#16a34a">Acceptable</span>' : cv < 25 ? '<span style="color:#d97706">Borderline</span>' : '<span style="color:#dc2626">High CV</span>')
+      + '</div>';
+  }
+
+  const zf = zFactor(ctrlVals, smpVals);
+  if (zf !== null) {
+    const zCol = zf >= 0.5 ? '#16a34a' : zf >= 0 ? '#d97706' : '#dc2626';
+    html += '<div style="font-size:10px;color:#64748b;margin-top:4px">Z-factor: <b style="color:' + zCol + '">' + zf.toFixed(3) + '</b>'
+      + (zf >= 0.5 ? ' — Excellent' : zf >= 0 ? ' — Marginal' : ' — Poor') + '</div>';
+  }
+
+  res.innerHTML = html;
+}
+
+function sbCalcBatch() {
+  const raw      = document.getElementById('sb-batch-data').value.trim();
+  const gCtrlStr = document.getElementById('sb-gctrl').value.trim();
+  const gBlkStr  = document.getElementById('sb-gblank').value.trim();
+  const res      = document.getElementById('sb-batch-result');
+
+  if (!raw) { res.innerHTML = '<div style="font-size:11px;color:#dc2626;margin-top:4px">No data entered.</div>'; return; }
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  let ctrlVals = parseNums(gCtrlStr);
+  let blkVals  = parseNums(gBlkStr);
+  const dataRows = [];
+
+  lines.forEach(line => {
+    const parts = line.split(/[\t,;]/).map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    const key  = parts[0].toUpperCase();
+    const vals = parts.slice(1).map(parseFloat).filter(v => !isNaN(v));
+    if (['CONTROL','CTRL','PC','MAX'].includes(key))      { ctrlVals = vals; }
+    else if (['BLANK','BG','NC','MIN'].includes(key))     { blkVals  = vals; }
+    else { const c = parseFloat(parts[0]); if (!isNaN(c) && vals.length) dataRows.push({ conc: c, vals }); }
+  });
+
+  if (!ctrlVals.length || !blkVals.length) {
+    res.innerHTML = '<div style="font-size:11px;color:#dc2626;margin-top:4px">Missing Control or Blank rows.</div>'; return;
+  }
+
+  const ctrl = meanNums(ctrlVals), blk = meanNums(blkVals);
+  sbLastBatch = dataRows.map(row => {
+    const pctVals = row.vals.map(s => calcPctInhibition(s, ctrl, blk));
+    return { conc: row.conc, pctVals, pctMean: meanNums(pctVals), pctSD: sdNums(pctVals), n: row.vals.length };
+  }).sort((a, b) => a.conc - b.conc);
+
+  if (!sbLastBatch.length) {
+    res.innerHTML = '<div style="font-size:11px;color:#dc2626;margin-top:4px">No sample rows found.</div>'; return;
+  }
+
+  let html = '<div style="font-size:10px;color:#64748b;margin-bottom:6px">Ctrl: ' + ctrl.toFixed(1)
+    + ' | Blank: ' + blk.toFixed(1) + ' | S/B: ' + (blk > 0 ? (ctrl/blk).toFixed(2) : 'N/A') + '</div>'
+    + '<div class="table-wrap"><table>'
+    + '<thead><tr><th>Conc</th><th>Mean %Inh</th><th>SD</th><th>n</th><th>Flag</th></tr></thead><tbody>';
+
+  sbLastBatch.forEach(r => {
+    const cv   = r.pctMean !== 0 ? Math.abs(r.pctSD / r.pctMean * 100) : 0;
+    const flag = r.pctMean > 100 ? 'Over 100%' : r.pctMean < -10 ? 'Negative' : cv > 25 ? 'High CV' : 'OK';
+    const fCol = flag === 'OK' ? '#16a34a' : '#d97706';
+    html += '<tr>'
+      + '<td class="mono" style="font-size:11px">' + r.conc + '</td>'
+      + '<td class="mono" style="font-size:11px;color:#2563eb;font-weight:700">' + r.pctMean.toFixed(1) + '%</td>'
+      + '<td class="mono" style="font-size:11px">' + (r.pctSD > 0 ? '±' + r.pctSD.toFixed(1) + '%' : '—') + '</td>'
+      + '<td class="mono" style="font-size:11px">' + r.n + '</td>'
+      + '<td><span style="font-size:10px;font-weight:600;color:' + fCol + '">' + flag + '</span></td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  res.innerHTML = html;
+}
+
+function sbSendToFit() {
+  if (!sbLastBatch.length) { alert('Run batch calculation first.'); return; }
+  const lines = sbLastBatch.map(r => r.conc + ', ' + r.pctVals.map(v => v.toFixed(2)).join(', '));
+  document.getElementById('inp-data').value = lines.join('\n');
+  document.getElementById('inp-unit').value = '% Inhibition';
+  // Collapse the calculator
+  document.getElementById('inh-calc-panel').style.display = 'none';
+  document.getElementById('inh-toggle-icon').textContent = '▼ expand';
+  showTab('fit');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.querySelectorAll('.tab').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(`'${name}'`)) el.classList.add('active');
+  });
+  if (name === 'compare') renderCompareTab();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FILE IMPORT
+// ═══════════════════════════════════════════════════════════
+function handleFile(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('inp-data').value = e.target.result;
+    document.getElementById('inp-name').value = f.name.replace(/\.[^.]+$/, '');
+  };
+  r.readAsText(f);
+}
+function handleDrop(ev) {
+  ev.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const f = ev.dataTransfer.files[0]; if (!f) return;
+  handleFile({ target: { files: [f] } });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXCEL EXPORT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('hbtn-excel').addEventListener('click', () => {
+  const compounds = savedCompounds.length ? savedCompounds : (currentFit ? [currentFit] : []);
+  if (!compounds.length) { alert('Fit a curve first.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  const sum = [['Compound','IC50','IC50 SD (bootstrap)','IC50 CI Low','IC50 CI High','pIC50','Hill Slope','Top (Emax)','Bottom','R2','RMSE','AIC','Model','n','Conc Unit','Response Unit']];
+  compounds.forEach(c => {
+    const pIC50 = (-Math.log10(c.ic50 * (c.concUnit==='nM'?1e-9:c.concUnit==='µM'?1e-6:1e-3))).toFixed(3);
+    sum.push([c.name, +c.ic50.toFixed(6), +(c.ic50SD||0).toFixed(6), +c.ic50CI[0].toFixed(6), +c.ic50CI[1].toFixed(6), +pIC50,
+      +c.hill.toFixed(4), +c.top.toFixed(3), +c.bottom.toFixed(3), +c.r2.toFixed(5),
+      +c.rmse.toFixed(4), +c.aic.toFixed(2), c.model, c.n, c.concUnit, c.unit]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'IC50 Summary');
+
+  // Raw data sheet per compound
+  compounds.forEach(c => {
+    const rows = [['Concentration', 'log10[Conc]', 'Observed', 'Predicted', 'Residual', 'Std Residual']];
+    const resStd = std(c.resids);
+    c.concArr.forEach((conc, i) => {
+      rows.push([conc, +Math.log10(conc).toFixed(4), c.respArr[i], +c.predicted[i].toFixed(4),
+        +c.resids[i].toFixed(4), +(resStd>0?c.resids[i]/resStd:0).toFixed(3)]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), c.name.slice(0, 28));
+  });
+
+  XLSX.writeFile(wb, 'GaoLab_IC50_Results.xlsx');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PDF EXPORT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('hbtn-pdf').addEventListener('click', async () => {
+  const compounds = savedCompounds.length ? savedCompounds : (currentFit ? [currentFit] : []);
+  if (!compounds.length) { alert('Fit a curve first.'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const W = 297, H = 210, ML = 14, MR = 14, TW = W - ML - MR;
+
+  function pageHeader(doc, title, subtitle) {
+    doc.setFillColor(30, 58, 95); doc.rect(0, 0, W, 12, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+    doc.text('Gao Lab IC50 Calculator', ML, 8.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(title, ML + 50, 8.5);
+    doc.setTextColor(180, 200, 220); doc.text(`Generated ${new Date().toLocaleDateString()}`, W - MR, 8.5, { align: 'right' });
+    if (subtitle) {
+      doc.setFillColor(241, 245, 249); doc.rect(0, 12, W, 9, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 58, 95);
+      doc.text(subtitle, ML, 18);
+    }
+  }
+  function sectionTitle(doc, text, y) {
+    doc.setFillColor(237, 242, 255); doc.roundedRect(ML, y, TW, 7, 1, 1, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 58, 95);
+    doc.text(text, ML + 3, y + 5); return y + 10;
+  }
+
+  // capture charts
+  await new Promise(r => setTimeout(r, 200));
+  const fitImg = document.getElementById('fit-chart') ? document.getElementById('fit-chart').toDataURL('image/png') : null;
+  const compareImg = document.getElementById('compare-chart') && savedCompounds.length > 1 ? document.getElementById('compare-chart').toDataURL('image/png') : null;
+  const resImg = document.getElementById('res-chart') ? document.getElementById('res-chart').toDataURL('image/png') : null;
+  const obspImg = document.getElementById('obs-pred-chart') ? document.getElementById('obs-pred-chart').toDataURL('image/png') : null;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  // ── PAGE 1: Cover + Summary ──────────────────────────────
+  doc.setFillColor(30, 58, 95); doc.rect(0, 0, W, 38, 'F');
+  doc.setFillColor(45, 106, 159); doc.rect(0, 30, W, 8, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
+  doc.text('Gao Lab IC50 Calculator', ML, 15);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(180, 210, 240);
+  doc.text('Dose-Response Curve Fitting & IC50 Analysis Report', ML, 23);
+  doc.setFontSize(8.5); doc.setTextColor(200, 220, 240);
+  doc.text(`Generated: ${new Date().toLocaleString()}  |  Compounds: ${compounds.length}`, ML, 35);
+
+  // metrics row
+  const bestCpd = [...compounds].sort((a, b) => a.ic50 - b.ic50)[0];
+  const avgR2 = compounds.reduce((a, c) => a + c.r2, 0) / compounds.length;
+  const metBoxes = [
+    { l: 'Compounds', v: String(compounds.length), c: [37, 99, 235] },
+    { l: 'Best IC50', v: formatIC50(bestCpd.ic50, bestCpd.concUnit), c: [22, 163, 74] },
+    { l: 'Best Compound', v: bestCpd.name, c: [124, 58, 237] },
+    { l: 'Avg R²', v: avgR2.toFixed(4), c: avgR2 >= 0.99 ? [22, 163, 74] : [217, 119, 6] },
+    { l: 'Models Used', v: [...new Set(compounds.map(c => c.model))].join(', '), c: [30, 58, 95] },
+  ];
+  const bw = (TW - 8) / metBoxes.length;
+  metBoxes.forEach((b, i) => {
+    const bx = ML + i * (bw + 2), by = 42;
+    doc.setFillColor(248, 250, 252); doc.roundedRect(bx, by, bw, 13, 1, 1, 'F');
+    doc.setDrawColor(...b.c); doc.setLineWidth(0.4); doc.roundedRect(bx, by, bw, 13, 1, 1, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...b.c);
+    doc.text(b.v, bx + bw / 2, by + 6, { align: 'center', maxWidth: bw - 2 });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
+    doc.text(b.l, bx + bw / 2, by + 11, { align: 'center' });
+  });
+
+  let sy = sectionTitle(doc, 'IC50 Results Summary', 60);
+  doc.autoTable({
+    startY: sy,
+    head: [['Compound', 'IC50', '95% CI', 'pIC50', 'Hill Slope (h)', 'Emax (Top)', 'Bottom', 'R²', 'RMSE', 'Model', 'n', 'Rank']],
+    body: [...compounds].sort((a, b) => a.ic50 - b.ic50).map((c, i) => {
+      const pIC50 = (-Math.log10(c.ic50 * (c.concUnit === 'nM' ? 1e-9 : c.concUnit === 'µM' ? 1e-6 : 1e-3))).toFixed(3);
+      return [c.name, formatIC50(c.ic50, c.concUnit),
+        `${formatIC50(c.ic50CI[0], c.concUnit)} – ${formatIC50(c.ic50CI[1], c.concUnit)}`,
+        pIC50, c.hill.toFixed(3), c.top.toFixed(2), c.bottom.toFixed(2),
+        c.r2.toFixed(4), c.rmse.toFixed(3), c.model, c.n, `#${i + 1}`];
+    }),
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 1: { fontStyle: 'bold', textColor: [37, 99, 235] }, 0: { cellWidth: 26 }, 2: { cellWidth: 34 } },
+    margin: { left: ML, right: MR },
+  });
+
+  // ── PAGE 2: Dose-Response Curves — fixed natural aspect ratio ──
+  // Chart images have native ~600×400px aspect (3:2). We render at 130mm wide × 87mm tall.
+  // Side-by-side when comparison exists; single chart centred otherwise.
+  doc.addPage();
+  pageHeader(doc, 'Dose-Response Curve Analysis', 'Fitted Curves, Parameters & Equation');
+
+  const IMG_W = 130, IMG_H = 87; // natural 3:2 aspect ratio, not stretched
+  const TITLE_H = 7, BOX_PAD = 2;
+  const BOX_H = IMG_H + TITLE_H + BOX_PAD * 2;
+
+  let py = 24;
+  if (fitImg && compareImg && savedCompounds.length > 1) {
+    // Side-by-side: two charts at IMG_W wide each
+    const gap = TW - 2 * IMG_W;  // remaining space as gap
+    const gapX = gap > 8 ? Math.min(gap, 12) : 4;
+    const leftX = ML;
+    const rightX = ML + IMG_W + gapX;
+
+    // Left chart
+    doc.setFillColor(255,255,255); doc.roundedRect(leftX, py, IMG_W, BOX_H, 2, 2, 'F');
+    doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.roundedRect(leftX, py, IMG_W, BOX_H, 2, 2, 'S');
+    doc.setFillColor(241,245,249); doc.rect(leftX, py, IMG_W, TITLE_H, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(30,58,95);
+    doc.text(`${currentFit?.name||compounds[0].name} — Dose-Response`, leftX + IMG_W/2, py + 5, {align:'center', maxWidth: IMG_W - 4});
+    try { doc.addImage(fitImg,'PNG', leftX + BOX_PAD, py + TITLE_H + BOX_PAD, IMG_W - BOX_PAD*2, IMG_H); } catch(e){}
+
+    // Right chart
+    doc.setFillColor(255,255,255); doc.roundedRect(rightX, py, IMG_W, BOX_H, 2, 2, 'F');
+    doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.roundedRect(rightX, py, IMG_W, BOX_H, 2, 2, 'S');
+    doc.setFillColor(241,245,249); doc.rect(rightX, py, IMG_W, TITLE_H, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(30,58,95);
+    doc.text('Multi-Compound Overlay', rightX + IMG_W/2, py + 5, {align:'center', maxWidth: IMG_W - 4});
+    try { doc.addImage(compareImg,'PNG', rightX + BOX_PAD, py + TITLE_H + BOX_PAD, IMG_W - BOX_PAD*2, IMG_H); } catch(e){}
+
+    py += BOX_H + 8;
+  } else if (fitImg) {
+    // Single chart — centred, natural aspect
+    const cx = ML + (TW - IMG_W) / 2;
+    doc.setFillColor(255,255,255); doc.roundedRect(cx, py, IMG_W, BOX_H, 2, 2, 'F');
+    doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.roundedRect(cx, py, IMG_W, BOX_H, 2, 2, 'S');
+    doc.setFillColor(241,245,249); doc.rect(cx, py, IMG_W, TITLE_H, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(30,58,95);
+    doc.text(`${currentFit?.name||compounds[0].name} — Dose-Response Curve`, cx + IMG_W/2, py + 5, {align:'center', maxWidth: IMG_W - 4});
+    try { doc.addImage(fitImg,'PNG', cx + BOX_PAD, py + TITLE_H + BOX_PAD, IMG_W - BOX_PAD*2, IMG_H); } catch(e){}
+    py += BOX_H + 8;
+  }
+
+  // Parameters summary table on the same page if space allows
+  if (py < H - 55) {
+    py = sectionTitle(doc, 'Fitted Parameters Summary', py);
+    doc.autoTable({
+      startY: py,
+      head: [['Compound','IC50','95% CI','pIC50','Hill (h)','Top','Bottom','R²','n','Replicates']],
+      body: compounds.map(c => {
+        const pIC50 = (-Math.log10(c.ic50*(c.concUnit==='nM'?1e-9:c.concUnit==='µM'?1e-6:1e-3))).toFixed(3);
+        return [c.name, formatIC50(c.ic50,c.concUnit),
+          c.ic50SD>0?formatIC50(c.ic50SD,c.concUnit):'n/a',
+          formatIC50(c.ic50CI[0],c.concUnit)+' - '+formatIC50(c.ic50CI[1],c.concUnit),
+          pIC50, c.hill.toFixed(3), c.top.toFixed(2), c.bottom.toFixed(2),
+          c.r2.toFixed(4), c.n];
+      }),
+      styles:{fontSize:7.5, cellPadding:2},
+      headStyles:{fillColor:[30,58,95], textColor:255, fontStyle:'bold', fontSize:7.5},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{1:{fontStyle:'bold',textColor:[37,99,235]}, 0:{cellWidth:26}, 2:{cellWidth:38}},
+      margin:{left:ML, right:MR},
+    });
+  }
+
+  // ── PAGE 3: Individual compound detail pages ──────────────
+  for (const fit of compounds) {
+    doc.addPage();
+    pageHeader(doc, `${fit.name} — Detailed Analysis`, `Model: ${fit.model}  |  IC50 = ${formatIC50(fit.ic50, fit.concUnit)}  |  R² = ${fit.r2.toFixed(5)}`);
+
+    const pIC50 = (-Math.log10(fit.ic50 * (fit.concUnit === 'nM' ? 1e-9 : fit.concUnit === 'µM' ? 1e-6 : 1e-3))).toFixed(3);
+    let iy = 24;
+
+    // param boxes
+    const pboxes = [
+      { l: 'IC50', v: formatIC50(fit.ic50, fit.concUnit), c: [37, 99, 235] },
+      { l: 'pIC50', v: pIC50, c: [124, 58, 237] },
+      { l: 'Hill (h)', v: fit.hill.toFixed(4), c: fit.hill > 1.5 ? [220, 38, 38] : [22, 163, 74] },
+      { l: 'Emax', v: `${fit.top.toFixed(2)}`, c: [217, 119, 6] },
+      { l: 'Bottom', v: `${fit.bottom.toFixed(2)}`, c: [30, 58, 95] },
+      { l: 'R²', v: fit.r2.toFixed(4), c: fit.r2 >= 0.99 ? [22, 163, 74] : [217, 119, 6] },
+      { l: 'RMSE', v: fit.rmse.toFixed(4), c: [30, 58, 95] },
+      { l: 'n points', v: String(fit.n), c: [30, 58, 95] },
+    ];
+    const pbw = (TW - 7 * 2) / pboxes.length;
+    pboxes.forEach((b, i) => {
+      const bx = ML + i * (pbw + 2);
+      doc.setFillColor(248, 250, 252); doc.roundedRect(bx, iy, pbw, 12, 1, 1, 'F');
+      doc.setDrawColor(...b.c); doc.setLineWidth(0.35); doc.roundedRect(bx, iy, pbw, 12, 1, 1, 'S');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...b.c);
+      doc.text(b.v, bx + pbw / 2, iy + 6.5, { align: 'center', maxWidth: pbw - 2 });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
+      doc.text(b.l, bx + pbw / 2, iy + 10.5, { align: 'center' });
+    });
+    iy += 16;
+
+    // residuals + obs vs pred — 3:2 aspect, side-by-side, natural size
+    const DIMG_W = 100, DIMG_H = 67;  // 3:2 natural aspect
+    const DTITLE = 7, DPAD = 2, DBOX_H = DIMG_H + DTITLE + DPAD * 2;
+    if (resImg && currentFit && currentFit.name === fit.name) {
+      const gap2 = 6;
+      // Residuals box
+      doc.setFillColor(255,255,255); doc.roundedRect(ML, iy, DIMG_W, DBOX_H, 1, 1, 'F');
+      doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.roundedRect(ML, iy, DIMG_W, DBOX_H, 1, 1, 'S');
+      doc.setFillColor(241,245,249); doc.rect(ML, iy, DIMG_W, DTITLE, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(30,58,95);
+      doc.text('Residuals Plot', ML + DIMG_W/2, iy + DTITLE - 1.5, {align:'center'});
+      try { doc.addImage(resImg,'PNG', ML+DPAD, iy+DTITLE+DPAD, DIMG_W-DPAD*2, DIMG_H); } catch(e){}
+
+      if (obspImg) {
+        const rx2 = ML + DIMG_W + gap2;
+        doc.setFillColor(255,255,255); doc.roundedRect(rx2, iy, DIMG_W, DBOX_H, 1, 1, 'F');
+        doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.roundedRect(rx2, iy, DIMG_W, DBOX_H, 1, 1, 'S');
+        doc.setFillColor(241,245,249); doc.rect(rx2, iy, DIMG_W, DTITLE, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(30,58,95);
+        doc.text('Observed vs Predicted', rx2 + DIMG_W/2, iy + DTITLE - 1.5, {align:'center'});
+        try { doc.addImage(obspImg,'PNG', rx2+DPAD, iy+DTITLE+DPAD, DIMG_W-DPAD*2, DIMG_H); } catch(e){}
+      }
+      iy += DBOX_H + 8;
+    }
+
+    // data table — include SD/SEM columns when replicates present
+    iy = sectionTitle(doc, fit.hasReplicates ? 'Data Summary (Mean ± SD per Concentration)' : 'Raw Data & Residuals', iy);
+    const resStd2 = std(fit.resids);
+    const headers = fit.hasReplicates
+      ? ['#', `Conc (${fit.concUnit})`, 'n', 'Mean', 'SD', 'SEM', 'Predicted', 'Residual', 'Status']
+      : ['#', `Conc (${fit.concUnit})`, 'log10[Conc]', 'Observed', 'Predicted', 'Residual', 'Status'];
+    const rows2 = fit.concArr.map((c, i) => {
+      const stdR = resStd2 > 0 ? fit.resids[i] / resStd2 : 0;
+      const status = Math.abs(stdR) > 2.5 ? 'Outlier?' : 'OK';
+      if (fit.hasReplicates) {
+        return [i + 1, c.toExponential(2),
+          fit.ns ? fit.ns[i] : '—',
+          fit.respArr[i].toFixed(3),
+          fit.sds ? fit.sds[i].toFixed(3) : '—',
+          fit.sems ? fit.sems[i].toFixed(3) : '—',
+          fit.predicted[i].toFixed(3),
+          fit.resids[i].toFixed(4), status];
+      }
+      return [i + 1, c.toExponential(2), Math.log10(c).toFixed(3),
+        fit.respArr[i].toFixed(3), fit.predicted[i].toFixed(3),
+        fit.resids[i].toFixed(4), status];
+    });
+    doc.autoTable({
+      startY: iy,
+      head: [headers],
+      body: rows2,
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      didParseCell: d => {
+        const lastCol = headers.length - 1;
+        if (d.section === 'body' && d.column.index === lastCol) {
+          d.cell.styles.textColor = d.cell.raw === 'OK' ? [22, 163, 74] : [220, 38, 38];
+          d.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+  }
+
+  // ── Footer on every page ──────────────────────────────────
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(248, 250, 252); doc.rect(0, H - 6, W, 6, 'F');
+    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2); doc.line(0, H - 6, W, H - 6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(148, 163, 184);
+    doc.text('Gao Lab IC50 Calculator  |  Confidential Research Use Only  |  ' + new Date().toLocaleDateString(), ML, H - 2);
+    doc.text(`Page ${i} of ${pageCount}`, W - MR, H - 2, { align: 'right' });
+  }
+
+  doc.save('GaoLab_IC50_Report.pdf');
+});
+</script>
+</body>
+</html>
